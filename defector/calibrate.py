@@ -59,4 +59,4 @@ class VirtCam:
             if ret:
                 self.imgpoints.append(corners)
 
-        ret, self.camera_matrix, self.distortion_vector, rvecs, tvecs = cv.calibrateCamera(self.objpoints, imgpoints, gray.shape[::-1], None, None)
+        ret, self.camera_matrix, self.distortion_vector, rvecs, tvecs = cv.calibrateCamera(self.objpoints, self.imgpoints, gray.shape[::-1], None, None)
