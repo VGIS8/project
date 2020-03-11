@@ -1,9 +1,12 @@
 """A collection of helper functions used for the main program
 """
 
+import sys
 from typing import Optional
 import cv2
-from pymba import Vimba, VimbaException, Frame
+
+if "pytest" not in sys.modules:
+    from pymba import Vimba, VimbaException, Frame
 
 
 def twice(x):
