@@ -8,6 +8,5 @@ os.environ["GENICAM_GENTL64_PATH"] = "N/A"  # noqa: E402 we have to do this befo
 
 #from defector import helpers
 
-
 #def test_twice():
 #    assert helpers.twice(3) == 6
