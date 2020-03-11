@@ -6,6 +6,7 @@ import cv2
 
 from pymba import Vimba, VimbaException, Frame
 
+
 def twice(x):
     """A basic example function used to show off pytest"""
 
