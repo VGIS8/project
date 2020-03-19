@@ -20,6 +20,9 @@ class VirtCam:
     distortion_vector = None
     images = None
     file_types = ['jpg', 'png']
+    frame_cnt = 0
+    has_frames = False
+    is_last_frame = True
 
     def __init__(self, image_path, file_types=None, checker_board_size=None):
         if file_types is not None:
@@ -28,30 +31,45 @@ class VirtCam:
         if checker_board_size is not None:
             self.checker_board_size = checker_board_size
 
-        self.objpoints = np.zeros((checker_board_size[0] * checker_board_size[1], 3), np.float32)
-        self.objpoints[:, :2] = np.mgrid[0:checker_board_size[0], 0:checker_board_size[1]].T.reshape(-1, 2)
+        self.objpoints = np.zeros((self.checker_board_size[0] * self.checker_board_size[1], 3), np.float32)
+        self.objpoints[:, :2] = np.mgrid[0:self.checker_board_size[0], 0:self.checker_board_size[1]].T.reshape(-1, 2)
 
-        self.images = [glob.glob(f'{image_path}/*.{e}') for e in self.file_types]
+        self.images = []
+        for e in self.file_types:
+            self.images.extend(glob.glob(f'{image_path}/*.{e}'))
 
-    frame_cnt = 0
+        if self.images != []:
+            self.has_frames = True
+            self.is_last_frame = False
 
     def get_frame(self):
-        global frame_cnt
-        overflow = False
+        """Get the next frame in the sequence
+        Args:
 
-        if frame_cnt >= len(self.images):
-            frame_cnt = 0
-            overflow = True
+        Returns:
+            frame (list): RGB values or []
+            last (boolean): True if the returned frame is the last in the current sequence. False otherwise.
+        """
 
-        frame = self.images[frame_cnt]
-        frame_cnt += 1
+        if not self.has_frames:
+            return None
 
-        return cv.imread(frame), overflow
+        self.is_last_frame = False
+
+        frame = self.images[self.frame_cnt]
+        self.frame_cnt += 1
+
+        if self.frame_cnt >= len(self.images):
+            self.frame_cnt = 0
+            self.is_last_frame = True
+
+        print(frame)
+
+        return cv.imread(frame)
 
     def checker_calibrate(self):
-        overflow = False
-        while not overflow:
-            img, overflow = self.get_frame()
+        while not self.is_last_frame:
+            img = self.get_frame()
             gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
             # Find the chess board corners
             ret, corners = cv.findChessboardCorners(gray, (9, 6), None)
