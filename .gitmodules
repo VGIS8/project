@@ -1,0 +1,3 @@
+[submodule "project-bin"]
+	path = project-bin
+	url = https://github.com/VGIS8/project-bin.git

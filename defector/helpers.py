@@ -2,6 +2,9 @@
 """
 
 from typing import Optional
+from cameras import VirtCam
+import os
+import shutil
 import cv2
 
 from pymba import Vimba, VimbaException, Frame
@@ -81,3 +84,41 @@ def get_frame(frames=1, cam=0):
         camera.disarm()
         camera.close()
         return frames
+
+
+def framediffs(camera: VirtCam):
+    """
+    Create a series of frame differences between all subsequent frames of VirtCam.
+
+    Args:
+        image_path (string) the path to folder with images
+
+    Returns:
+        static_bg (np.array): The extracted static background
+    """
+    f = camera.get_frame()
+    w, h, _ = f.shape
+
+    background = cv2.cvtColor(camera.get_frame(), cv2.COLOR_BGR2GRAY)
+    w, h = background.shape
+    img_array = []
+
+    while not camera.is_last_frame:
+        frame = cv2.cvtColor(camera.get_frame(), cv2.COLOR_BGR2GRAY)
+        diff = cv2.absdiff(background, frame)
+        _, binary = cv2.threshold(diff, 10, 255, cv2.THRESH_BINARY)
+        img_array.append(binary)
+
+    out_folder = os.path.join(camera.image_path, 'frame_differences')
+    if os.path.exists(out_folder):
+        shutil.rmtree(out_folder)
+    os.makedirs(out_folder)
+
+    for i in range(len(img_array)):
+        cv2.imwrite(os.path.join(out_folder, f'out{i}.png'), img_array[i])
+
+
+if __name__ == "__main__":
+    camera = VirtCam(os.path.join(os.path.dirname(__file__), '../project-bin/vimba_image_series/dust'))
+    print(camera.has_frames)
+    framediffs(camera)

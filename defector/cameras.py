@@ -4,6 +4,16 @@
 import numpy as np
 import cv2 as cv
 import glob
+import re
+
+
+def sort_key_func(s):
+    '''Return the first number you find in string. 0 if not'''
+    nums = re.findall('[0-9]+', s)
+    if nums == []:
+        return 0
+    else:
+        return int(nums[0])
 
 
 class VirtCam:
@@ -23,6 +33,7 @@ class VirtCam:
     frame_cnt = 0
     has_frames = False
     is_last_frame = True
+    image_path = ""
 
     def __init__(self, image_path, file_types=None, checker_board_size=None):
         if file_types is not None:
@@ -37,10 +48,12 @@ class VirtCam:
         self.images = []
         for e in self.file_types:
             self.images.extend(glob.glob(f'{image_path}/*.{e}'))
+        self.images.sort(key=sort_key_func)
 
         if self.images != []:
             self.has_frames = True
             self.is_last_frame = False
+        self.image_path = image_path
 
     def get_frame(self):
         """Get the next frame in the sequence
