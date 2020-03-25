@@ -2,6 +2,7 @@
 """
 
 import numpy as np
+from pathlib import Path
 import cv2 as cv
 import glob
 import re
@@ -9,7 +10,7 @@ import re
 
 def sort_key_func(s):
     '''Return the first number you find in string. 0 if not'''
-    nums = re.findall('[0-9]+', s)
+    nums = re.findall('[0-9]+', Path(s).name)
     if nums == []:
         return 0
     else:

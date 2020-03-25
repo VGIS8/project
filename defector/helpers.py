@@ -13,12 +13,6 @@ from pathlib import Path
 from pymba import Vimba, VimbaException, Frame
 
 
-def twice(x):
-    """A basic example function used to show off pytest"""
-
-    return x * 2
-
-
 # todo add more colours
 PIXEL_FORMATS_CONVERSIONS = {
     'BayerRG8': cv2.COLOR_BAYER_RG2RGB,
