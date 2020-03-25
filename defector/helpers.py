@@ -133,7 +133,11 @@ if __name__ == "__main__":
 
     in_dir = Path(sys.argv[1]).resolve()
     out_dir = Path(sys.argv[2]).resolve()
+    overwrite = False
+
+    if len(sys.argv) > 3:
+        overwrite = sys.argv[3].lower() == "true"
 
     camera = VirtCam(in_dir)
     print(camera.has_frames)
-    framediffs(camera, out_dir, sys.argv[3].lower() == "true")
+    framediffs(camera, out_dir, overwrite)
