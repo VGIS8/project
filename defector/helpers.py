@@ -115,6 +115,7 @@ def framediffs(camera: VirtCam, out_folder: Path, overwrite=False):
         diff = cv2.absdiff(background, frame)
         _, binary = cv2.threshold(diff, 10, 255, cv2.THRESH_BINARY)
         img_array.append(binary)
+        background = frame
 
     for i in range(len(img_array)):
         cv2.imwrite(os.path.join(out_folder, f'out{i}.png'), img_array[i])
