@@ -5,7 +5,10 @@ from typing import Optional
 from cameras import VirtCam
 import os
 import shutil
+import sys
 import cv2
+
+from pathlib import Path
 
 from pymba import Vimba, VimbaException, Frame
 
@@ -86,16 +89,26 @@ def get_frame(frames=1, cam=0):
         return frames
 
 
-def framediffs(camera: VirtCam):
+def framediffs(camera: VirtCam, out_folder: Path, overwrite=False):
     """
     Create a series of frame differences between all subsequent frames of VirtCam.
 
     Args:
-        image_path (string) the path to folder with images
+        camera: A virtual camera object
+        out_dir: The directory to put output frames in
+        overwrite: If the output directory should be removed if it exists on start
 
     Returns:
-        static_bg (np.array): The extracted static background
+        nothing
     """
+
+    if out_folder.is_dir():
+        if overwrite:
+            shutil.rmtree(out_folder)
+        else:
+            raise FileExistsError('Overwrite not specified')
+    os.makedirs(out_folder)
+
     f = camera.get_frame()
     w, h, _ = f.shape
 
@@ -109,16 +122,18 @@ def framediffs(camera: VirtCam):
         _, binary = cv2.threshold(diff, 10, 255, cv2.THRESH_BINARY)
         img_array.append(binary)
 
-    out_folder = os.path.join(camera.image_path, 'frame_differences')
-    if os.path.exists(out_folder):
-        shutil.rmtree(out_folder)
-    os.makedirs(out_folder)
-
     for i in range(len(img_array)):
         cv2.imwrite(os.path.join(out_folder, f'out{i}.png'), img_array[i])
 
 
 if __name__ == "__main__":
-    camera = VirtCam(os.path.join(os.path.dirname(__file__), '../project-bin/vimba_image_series/dust'))
+    if len(sys.argv) <= 1:
+        print('No args provided\n\tin_dir out_dir overwrite\n\timages_series1 output1 true')
+        exit(1)
+
+    in_dir = Path(sys.argv[1]).resolve()
+    out_dir = Path(sys.argv[2]).resolve()
+
+    camera = VirtCam(in_dir)
     print(camera.has_frames)
-    framediffs(camera)
+    framediffs(camera, out_dir, sys.argv[3].lower() == "true")
