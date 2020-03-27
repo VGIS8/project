@@ -12,7 +12,6 @@ from pathlib import Path
 
 from pymba import Vimba, VimbaException, Frame
 
-
 # todo add more colours
 PIXEL_FORMATS_CONVERSIONS = {
     'BayerRG8': cv2.COLOR_BAYER_RG2RGB,
