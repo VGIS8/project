@@ -9,7 +9,7 @@ import re
 
 
 def sort_key_func(s):
-    '''Return the first number you find in string. 0 if not'''
+    """Return the first number you find in string. 0 if not"""
     nums = re.findall('[0-9]+', Path(s).name)
     if nums == []:
         return 0
@@ -18,7 +18,7 @@ def sort_key_func(s):
 
 
 class VirtCam:
-    """Provides a camera compatible class, that instead streas images from a folder"""
+    """Provides a camera compatible class, that instead streams images from a folder"""
 
     # termination criteria
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)

@@ -2,13 +2,9 @@
 """
 
 from typing import Optional
-from cameras import VirtCam
-import os
-import shutil
-import sys
-import cv2
 
-from pathlib import Path
+import cv2
+import numpy as np
 
 from pymba import Vimba, VimbaException, Frame
 
@@ -19,10 +15,12 @@ PIXEL_FORMATS_CONVERSIONS = {
 
 
 def display_frame(frame: Frame, delay: Optional[int] = 1) -> None:
-    """
-    Displays the acquired frame.
-    :param frame: The frame object to display.
-    :param delay: Display delay in milliseconds, use 0 for indefinite.
+    """Displays the acquired frame.
+
+    Args:
+        frame: The frame object to display.
+        delay: Display delay in milliseconds, use 0 for indefinite.
+            Default 1
     """
     print('frame {}'.format(frame.data.frameID))
 
@@ -45,9 +43,9 @@ def get_frame(frames=1, cam=0):
 
     Args:
         frames (int): The amount of frames to get.
-            Defaults to 1
+            Default 1
         cam: The index(int) or camera_id(str)
-            Defaults to 0
+            Default 0
 
     Returns:
         list of images
@@ -82,56 +80,38 @@ def get_frame(frames=1, cam=0):
         return frames
 
 
-def framediffs(camera: VirtCam, out_folder: Path, overwrite=False):
-    """
-    Create a series of frame differences between all subsequent frames of VirtCam.
+def roi_crop():
+    # Load an color image in grayscale
+    img = cv2.imread('clean_1.png')
 
-    Args:
-        camera: A virtual camera object
-        out_dir: The directory to put output frames in
-        overwrite: If the output directory should be removed if it exists on start
+    ret, threshed_img = cv2.threshold(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), 40, 255, cv2.THRESH_BINARY)
+    # find contours and get the external one
 
-    Returns:
-        nothing
-    """
+    kernel = np.ones((15, 15), np.uint8)
+    closing = cv2.morphologyEx(threshed_img, cv2.MORPH_CLOSE, kernel)
 
-    if out_folder.is_dir():
-        if overwrite:
-            shutil.rmtree(out_folder)
-        else:
-            raise FileExistsError('Overwrite not specified')
-    os.makedirs(out_folder)
+    contours, hier = cv2.findContours(closing, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    f = camera.get_frame()
-    w, h, _ = f.shape
+    chosen_contour = max(contours, key=len)
 
-    background = cv2.cvtColor(camera.get_frame(), cv2.COLOR_BGR2GRAY)
-    w, h = background.shape
-    img_array = []
+    x, y, w, h = cv2.boundingRect(chosen_contour)
+    # draw a green rectangle to visualize the bounding rect
 
-    while not camera.is_last_frame:
-        frame = cv2.cvtColor(camera.get_frame(), cv2.COLOR_BGR2GRAY)
-        diff = cv2.absdiff(background, frame)
-        _, binary = cv2.threshold(diff, 10, 255, cv2.THRESH_BINARY)
-        img_array.append(binary)
-        background = frame
+    # get the min area rect
+    rect = cv2.minAreaRect(chosen_contour)
+    box = cv2.boxPoints(rect)
 
-    for i in range(len(img_array)):
-        cv2.imwrite(os.path.join(out_folder, f'out{i}.png'), img_array[i])
+    # convert all coordinates floating point values to int
+    box = np.int0(box)
 
+    # create mask and draw filled rectangle from contour
+    mask = np.zeros(img.shape, np.uint8)
+    cv2.rectangle(mask, (x, y), (x + w, y + h), (255, 255, 255), cv2.FILLED)
 
-if __name__ == "__main__":
-    if len(sys.argv) <= 1:
-        print('No args provided\n\tin_dir out_dir overwrite\n\timages_series1 output1 true')
-        exit(1)
+    # apply mask
+    dst = cv2.bitwise_and(img, mask)
 
-    in_dir = Path(sys.argv[1]).resolve()
-    out_dir = Path(sys.argv[2]).resolve()
-    overwrite = False
+    # crop image to mask
+    crop_img = dst[y:y + h, x:x + w]
 
-    if len(sys.argv) > 3:
-        overwrite = sys.argv[3].lower() == "true"
-
-    camera = VirtCam(in_dir)
-    print(camera.has_frames)
-    framediffs(camera, out_dir, overwrite)
+    return crop_img
