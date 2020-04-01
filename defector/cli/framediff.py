@@ -38,7 +38,7 @@ def framediff(cli):
     while not camera.is_last_frame:
         frame = cv2.cvtColor(camera.get_frame(), cv2.COLOR_BGR2GRAY)
         diff = cv2.absdiff(background, frame)
-        _, binary = cv2.threshold(diff, 10, 255, cv2.THRESH_BINARY)
+        _, binary = cv2.threshold(diff, 5, 255, cv2.THRESH_BINARY)
         img_array.append(binary)
         background = frame
 
