@@ -86,7 +86,7 @@ def roi_crop(img):
 
         Args:
             img: An openCV image
-      
+
         Returns:
             A cropped image
     """
