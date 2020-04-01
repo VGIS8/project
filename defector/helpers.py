@@ -80,9 +80,16 @@ def get_frame(frames=1, cam=0):
         return frames
 
 
-def roi_crop():
-    # Load an color image in grayscale
-    img = cv2.imread('clean_1.png')
+def roi_crop(img):
+    """ Takes an image and returns a cropped image
+        Crops frames to remove background
+
+        Args:
+            img: An openCV image
+        
+        Returns:
+            A cropped image
+    """
 
     ret, threshed_img = cv2.threshold(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), 40, 255, cv2.THRESH_BINARY)
     # find contours and get the external one
