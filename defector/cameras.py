@@ -88,34 +88,31 @@ class VirtCam:
 
 
 class PymbaCam:
-    
-    camera = None
-    is_last_frame = True
-    mode = None
-    img_buffer = []
-    img_ID = 0
     PIXEL_FORMATS_CONVERSIONS = {
         'BayerRG8': cv.COLOR_BAYER_RG2RGB,
     }
 
 
-    def __init__(self, mode='Continous', camera=0):
-        if mode not in ['Continuous']: # , 'SingleFrame']:
-            raise NotImplementedError(f"{mode} is not a valid mode or not implemented. Use Continous")
+    def __init__(self, mode='Continuous', cam_idx=0):
+        vimba = Vimba()
+        self.camera = vimba.camera(cam_idx)
+        
+        self.is_last_frame = True
+        self.img_buffer = []
+        self.img_ID = 0
+        if mode not in 'Continuous': # SingleFrame']:
+            raise NotImplementedError(f"{mode} is not a valid mode or not implemented. Use Continuous")
 
         
-
-        self.camera = vimba.camera(camera)
         self.camera.open()
         self.camera.arm('Continuous', self.continous_cb)
     
-    def __del__():
+    def __del__(self):
         # stop frame acquisition
         # start_frame_acquisition can simply be called again if the camera is still armed
-        camera.stop_frame_acquisition()
-        camera.disarm()
-        camera.close()
-        pass
+        self.camera.stop_frame_acquisition()
+        self.camera.disarm()
+        self.camera.close()
 
     def continous_cb(self, frame: Frame):
         """Callback for receiving frames when they're ready
