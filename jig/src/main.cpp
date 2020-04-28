@@ -7,17 +7,20 @@ void setup() {
   Serial.println("hey");
 
   pinMode(ESC_GND, OUTPUT);
+  //bitSet(DDRD, 2);
   digitalWrite(ESC_GND, LOW);
   
   Timer1.initialize(250);
-  Timer1.pwm(ESC_PIN, 0);
+  Timer1.pwm(ESC_PIN, 1023/2);
 
   Accel.set_max_speed(1023);
   Accel.set_min_speed(1023/2);
-  Accel.set_accel(50);
-  Accel.set_decel(50);
+  Accel.set_accel(30);
+  Accel.set_decel(30);
   Accel.set_callback(&update_speed);
   Accel.constrain = true;
+
+  delay(10000);
 }
 
 void update_speed(int speed)
@@ -26,10 +29,31 @@ void update_speed(int speed)
 }
 
 void loop() {
-  long x = Serial.parseInt();
-  if(x)
+
+  if(1)
   {
-    Serial.println("\nPulseWidth set to: " + String(x-1) + "%");
-    Accel.set_speed(x);
+    long x = Serial.parseInt();
+    if(x)
+    {
+      Serial.println("\nPulseWidth set to: " + String(x-1) + "%");
+      Accel.set_speed(map(x, 1, 101, 1023/2, 1023));
+    }
+  }
+  else
+  {  
+    Accel.set_speed(1023);
+    while(Accel.get_speed() != 1023)
+    {
+      delay(5);
+    }
+    delay(1000);
+
+    unsigned long x = millis();
+    Accel.set_speed(1023/2);
+    while(Accel.get_speed() != 1023/2)
+    {
+      delay(5);
+    }
+    delay(1000);
   }
 }

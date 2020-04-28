@@ -96,13 +96,22 @@ class Accelerator
             {
                 // Use deceleration value
                 OCR2A = m_us_per_unit_per_s[1] / m_counter_step_size;
+                m_direction = 0;
             }
             else
             {
                 // Use the acceleration value
                 OCR2A = m_us_per_unit_per_s[0] / m_counter_step_size;
+                m_direction = 1;
             }
             m_target_speed = speed;
+
+            if (constrain)
+            {
+                m_target_speed = constrain(m_target_speed, m_min_speed, m_max_speed);
+                m_current_speed = constrain(m_current_speed, m_min_speed, m_max_speed);
+            }
+
             timer_start();
         }
 
@@ -112,7 +121,7 @@ class Accelerator
          */
         int get_speed() __attribute__((always_inline))
         {
-            return m_target_speed;
+            return m_current_speed;
         }
 
         /**
@@ -180,7 +189,7 @@ class Accelerator
         {
             TCNT2 = 0; // Clear the timer
             TCCR2A |= _BV(WGM21); // CTC mode
-            TCCR2B |= _BV(CS22) | _BV(CS20); // 2040uS period, 8uS steps
+            TCCR2B |= _BV(CS22) | _BV(CS21); // 2040uS period, 8uS steps
             TIMSK2 |= _BV(OCIE2A); // Intterupt on compare match
         }
 
@@ -200,7 +209,7 @@ class Accelerator
         /**
          * The time per count in timer2 [uS]
          */
-        const int m_counter_step_size = 8; 
+        const int m_counter_step_size = 16; 
 };
 
 Accelerator Accel;
@@ -215,8 +224,10 @@ int Accelerator::m_max_speed = 0;
 
 void (*Accelerator::m_cb)(int) = NULL;
 
-
 ISR(TIMER2_COMPA_vect)
 {
+    // bitSet(PORTD, 2);
+    // delayMicroseconds(10);
+    // bitClear(PORTD, 2);
     Accelerator::OCR2A_ISR();
 }
