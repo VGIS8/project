@@ -11,6 +11,18 @@ void setup() {
   
   Timer1.initialize(250);
   Timer1.pwm(ESC_PIN, 0);
+
+  Accel.set_max_speed(1023);
+  Accel.set_min_speed(1023/2);
+  Accel.set_accel(50);
+  Accel.set_decel(50);
+  Accel.set_callback(&update_speed);
+  Accel.constrain = true;
+}
+
+void update_speed(int speed)
+{
+  Timer1.pwm(ESC_PIN, speed);
 }
 
 void loop() {
@@ -18,6 +30,6 @@ void loop() {
   if(x)
   {
     Serial.println("\nPulseWidth set to: " + String(x-1) + "%");
-    Timer1.pwm(ESC_PIN, map(x, 1, 101, 1023/2, 1023));
+    Accel.set_speed(x);
   }
 }
