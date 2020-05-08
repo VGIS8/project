@@ -23,6 +23,8 @@ def framediff(cli):
     if cli.config.framediff.output.is_dir():
         if cli.config.framediff.force:
             shutil.rmtree(cli.config.framediff.output)
+            while cli.config.framediff.output.is_dir():
+                pass
         else:
             cli.log.error(f'{str(cli.config.framediff.output)} already exists, and overwrite isn\'t forced')
             return False
@@ -30,13 +32,14 @@ def framediff(cli):
 
     images = get_folder(cli.config.framediff.input.resolve())
 
+    size = None
     for idx, img in enumerate(images[:-cli.config.framediff.distance]):
         background = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
         frame = cv2.imread(images[idx + cli.config.framediff.distance], cv2.IMREAD_GRAYSCALE)
 
         if cli.config.framediff.roi:
-            background = roi_crop(background)
-            frame = roi_crop(frame)
+            size, background = roi_crop(background, size)
+            _, frame = roi_crop(frame, size)
 
         diff = cv2.absdiff(background, frame)
         _, binary = cv2.threshold(diff, 5, 255, cv2.THRESH_BINARY)
