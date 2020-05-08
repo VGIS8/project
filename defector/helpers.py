@@ -89,13 +89,13 @@ def roi_crop(img):
         Crops frames to remove background
 
         Args:
-            img: An openCV image
+            img: An gray scale openCV image
 
         Returns:
             A cropped image
     """
 
-    ret, threshed_img = cv2.threshold(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), 40, 255, cv2.THRESH_BINARY)
+    ret, threshed_img = cv2.threshold(img, 40, 255, cv2.THRESH_BINARY)
     # find contours and get the external one
 
     kernel = np.ones((15, 15), np.uint8)

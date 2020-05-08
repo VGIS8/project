@@ -5,10 +5,12 @@ from pathlib import Path
 import cv2
 from milc import cli
 
-from defector.cameras import VirtCam
 from defector.argument_types import dir_path
+from defector.helpers import roi_crop, get_folder
 
 
+@cli.argument('-d', '--distance', help='The distance in frames to diff over', type=int, default=1)
+@cli.argument('-r', '--roi', help='Crop ROI of all images', action='store_false')
 @cli.argument('-f', '--force', help='Remove output directory if it exists. !!THIS REMOVES THE ENTIRE DIRECTORY!!', action='store_true')
 @cli.argument('-i', '--input', type=dir_path, help='Directory containing the image sequence. Has to end in a number sequence', required=True)
 @cli.argument('-o', '--output', type=Path, help='Output directory to save images sequence in', default='framediff_output')
@@ -26,21 +28,16 @@ def framediff(cli):
             return False
     os.makedirs(cli.config.framediff.output)
 
-    camera = VirtCam(cli.config.framediff.input.resolve())
+    images = get_folder(cli.config.framediff.input.resolve())
 
-    f = camera.get_frame()
-    w, h, _ = f.shape
+    for idx, img in enumerate(images[:-cli.config.framediff.distance]):
+        background = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
+        frame = cv2.imread(images[idx + cli.config.framediff.distance], cv2.IMREAD_GRAYSCALE)
 
-    background = cv2.cvtColor(camera.get_frame(), cv2.COLOR_BGR2GRAY)
-    w, h = background.shape
-    img_array = []
+        if cli.config.framediff.roi:
+            background = roi_crop(background)
+            frame = roi_crop(frame)
 
-    while not camera.is_last_frame:
-        frame = cv2.cvtColor(camera.get_frame(), cv2.COLOR_BGR2GRAY)
         diff = cv2.absdiff(background, frame)
         _, binary = cv2.threshold(diff, 5, 255, cv2.THRESH_BINARY)
-        img_array.append(binary)
-        background = frame
-
-    for idx, image in enumerate(img_array):
-        cv2.imwrite(str(cli.config.framediff.output.joinpath(f'out{idx}.png')), img_array[idx])
+        cv2.imwrite(str(cli.config.framediff.output.joinpath(f'out{idx}.png')), binary)
