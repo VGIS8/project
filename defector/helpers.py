@@ -97,7 +97,7 @@ def roi_crop(img, size=None):
 
     img = cv2.copyMakeBorder(img, 10, 10, 10, 10, cv2.BORDER_CONSTANT, None, 0)
 
-    _, threshed_img = cv2.threshold(img, 60, 255, cv2.THRESH_BINARY)
+    _, threshed_img = cv2.threshold(img, 40, 255, cv2.THRESH_BINARY)
     # find contours and get the external one
 
     kernel = np.ones((15, 15), np.uint8)
@@ -105,19 +105,17 @@ def roi_crop(img, size=None):
 
     contours, hier = cv2.findContours(closing, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    chosen_contour = max(contours, key=len)
+    chosen_contour = max(contours, key=cv2.contourArea)
 
     x, y, w, h = cv2.boundingRect(chosen_contour)
-        # draw a green rectangle to visualize the bounding rect
+    # draw a green rectangle to visualize the bounding rect
 
-    # get the min area rect
-    rect = cv2.minAreaRect(chosen_contour)
-    box = cv2.boxPoints(rect)
+    if size is None:
+        size = [w, h]
+    else:
+        w, h = size
 
-    # convert all coordinates floating point values to int
-    box = np.int0(box)
-
-        # create mask and draw filled rectangle from contour
+    # create mask and draw filled rectangle from contour
     mask = np.zeros(img.shape, np.uint8)
         
     cv2.rectangle(mask, (x, y), (x + w, y + h), (255, 255, 255), cv2.FILLED)
@@ -125,11 +123,9 @@ def roi_crop(img, size=None):
     dst = cv2.bitwise_and(img, mask)
 
     # crop image to mask
-    crop_img = dst[y:y + h, x:x + w]
-    cv2.imshow("tryagain", crop_img)
-    cv2.waitKey(0)
+    img = dst[y:y + h, x:x + w]
 
-    return [1, 1], img
+    return size, img
 
 
 def sort_key_func(s):
