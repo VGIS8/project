@@ -23,7 +23,7 @@ class Accelerator
 
         /**
          * Get the current acceleration used when changing speed
-         * @return The acceleration in rpm/s^2
+         * @return The acceleration in unit/s^2
          */
         int get_accel() __attribute__((always_inline))
         {
@@ -41,7 +41,7 @@ class Accelerator
 
         /**
          * Get the current deceleration used when changing speed
-         * @return The deceleration in rpm/s^2
+         * @return The deceleration in unit/s^2
          */
         int get_decel() __attribute__((always_inline))
         {
@@ -95,15 +95,16 @@ class Accelerator
             if (speed < m_current_speed)
             {
                 // Use deceleration value
-                OCR2A = m_us_per_unit_per_s[1] / m_counter_step_size;
+                OCR2A = m_us_per_unit_per_s[0] / m_counter_step_size;
                 m_direction = 0;
             }
-            else
+            else if (speed > m_current_speed)
             {
                 // Use the acceleration value
-                OCR2A = m_us_per_unit_per_s[0] / m_counter_step_size;
+                OCR2A = m_us_per_unit_per_s[1] / m_counter_step_size;
                 m_direction = 1;
             }
+            Serial.println(OCR2A);
             m_target_speed = speed;
 
             if (constrain)
@@ -189,7 +190,7 @@ class Accelerator
         {
             TCNT2 = 0; // Clear the timer
             TCCR2A |= _BV(WGM21); // CTC mode
-            TCCR2B |= _BV(CS22) | _BV(CS21); // 2040uS period, 8uS steps
+            TCCR2B |= _BV(CS22) | _BV(CS21) | _BV(CS20); // 2040uS period, 8uS steps
             TIMSK2 |= _BV(OCIE2A); // Intterupt on compare match
         }
 
@@ -209,7 +210,7 @@ class Accelerator
         /**
          * The time per count in timer2 [uS]
          */
-        const int m_counter_step_size = 16; 
+        const int m_counter_step_size = 32; 
 };
 
 Accelerator Accel;

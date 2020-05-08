@@ -15,12 +15,10 @@ void setup() {
 
   Accel.set_max_speed(1023);
   Accel.set_min_speed(1023/2);
-  Accel.set_accel(30);
-  Accel.set_decel(30);
+  Accel.set_accel(125);
+  Accel.set_decel(7000);
   Accel.set_callback(&update_speed);
   Accel.constrain = true;
-
-  delay(10000);
 }
 
 void update_speed(int speed)
