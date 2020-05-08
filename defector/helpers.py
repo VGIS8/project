@@ -2,6 +2,10 @@
 """
 
 from typing import Optional
+from pathlib import Path
+from glob import glob
+
+import re
 
 import cv2
 import numpy as np
@@ -122,3 +126,22 @@ def roi_crop(img):
     crop_img = dst[y:y + h, x:x + w]
 
     return crop_img
+
+
+def sort_key_func(s):
+    """Return the first number you find in string. 0 if not"""
+    nums = re.findall('[0-9]+', Path(s).name)
+    if nums == []:
+        return 0
+    else:
+        return int(nums[0])
+
+
+def get_folder(folder, types=['jpg', 'png']):
+    folder = Path(folder)
+
+    images = []
+    for e in types:
+        images.extend(glob(f'{folder}/*.{e}'))
+    images.sort(key=sort_key_func)
+    return images
