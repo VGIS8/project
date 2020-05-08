@@ -117,7 +117,7 @@ def roi_crop(img, size=None):
 
     # create mask and draw filled rectangle from contour
     mask = np.zeros(img.shape, np.uint8)
-        
+
     cv2.rectangle(mask, (x, y), (x + w, y + h), (255, 255, 255), cv2.FILLED)
     # apply mask
     dst = cv2.bitwise_and(img, mask)
