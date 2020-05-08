@@ -11,16 +11,13 @@ from pymba import Vimba, Frame
 
 
 class PymbaCam:
-
-    vimba = Vimba()
-    vimba.startup()
-    camera = vimba.camera(0)
-
     PIXEL_FORMATS_CONVERSIONS = {
         'BayerRG8': cv.COLOR_BAYER_RG2RGB,
     }
 
     def __init__(self, mode='Continuous', cam_idx=0):
+        self.vimba = Vimba()
+        self.vimba.startup()
         self.camera = self.vimba.camera(cam_idx)
 
         self.is_last_frame = True
