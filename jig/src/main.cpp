@@ -1,13 +1,11 @@
 #include "main.hpp"
 
 
-void setup() {
+void setup() 
+{
   Serial.begin(115200);
-  Serial.setTimeout(1000);
-  Serial.println("hey");
 
   pinMode(ESC_GND, OUTPUT);
-  //bitSet(DDRD, 2);
   digitalWrite(ESC_GND, LOW);
   
   Timer1.initialize(250);
@@ -16,42 +14,33 @@ void setup() {
   Accel.set_max_speed(1023);
   Accel.set_min_speed(1023/2);
   Accel.set_accel(125);
-  Accel.set_decel(7000);
+  Accel.set_decel(125);
   Accel.set_callback(&update_speed);
   Accel.constrain = true;
 }
 
+
 void update_speed(int speed)
 {
-  Timer1.pwm(ESC_PIN, speed);
+  //Timer1.pwm(ESC_PIN, speed);
 }
 
-void loop() {
 
-  if(1)
+void loop() 
+{
+  com.poke();
+  
+  if (com.available())
   {
-    long x = Serial.parseInt();
-    if(x)
+    Packet p = com.read();
+    Accel.set_accel(p.acceleration);
+    Accel.set_decel(p.deceleration);
+    if(p.speed < 0)
     {
-      Serial.println("\nPulseWidth set to: " + String(x-1) + "%");
-      Accel.set_speed(map(x, 1, 101, 1023/2, 1023));
+      //p.speed *= -1;
     }
-  }
-  else
-  {  
-    Accel.set_speed(1023);
-    while(Accel.get_speed() != 1023)
-    {
-      delay(5);
-    }
-    delay(1000);
+    //Accel.set_speed(map(p.speed, 0, 1000, 1023/2, 1023));
 
-    unsigned long x = millis();
-    Accel.set_speed(1023/2);
-    while(Accel.get_speed() != 1023/2)
-    {
-      delay(5);
-    }
-    delay(1000);
+    Serial.print("s:");Serial.print(p.speed); Serial.print(" a:");Serial.print(p.acceleration); Serial.print(" d:");Serial.print(p.deceleration); Serial.print(" c:");Serial.print(p.CRC, HEX);Serial.print('\n');
   }
 }
