@@ -111,9 +111,9 @@ def roi_crop(img, size=None):
     # draw a green rectangle to visualize the bounding rect
 
     if size is None:
-        size = [w, h]
+        size = [x, y, w, h]
     else:
-        w, h = size
+        x, y, w, h = size
 
     # create mask and draw filled rectangle from contour
     mask = np.zeros(img.shape, np.uint8)
