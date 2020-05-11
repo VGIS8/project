@@ -11,7 +11,7 @@
 #define ESC_PIN 10
 #define ESC_GND 12
 
-PacketCom com('!');
+PacketCom com('!', true);
 
 // Prototypes
 void update_speed(int);

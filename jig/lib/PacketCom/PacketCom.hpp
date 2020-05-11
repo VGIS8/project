@@ -41,11 +41,12 @@ private:
     uint8_t m_avail = 0;
     
     bool m_check_crc(Packet p);
+    bool m_ack;
 
     FastCRC16 m_CRC16;
 
 public:
-    PacketCom(uint8_t start_byte='!');
+    PacketCom(uint8_t start_byte='!', bool ack=false);
 
     uint8_t available(void);
     Packet read(void);

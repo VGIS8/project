@@ -1,9 +1,10 @@
 
 #include "PacketCom.hpp"
 
-PacketCom::PacketCom(uint8_t start_byte)
+PacketCom::PacketCom(uint8_t start_byte, bool ack)
 {
     m_start_byte = start_byte;
+    m_ack = ack;
 }
 
 uint8_t PacketCom::available(void)
@@ -67,11 +68,19 @@ bool PacketCom::m_check_crc(Packet p)
     uint16_t crc = m_CRC16.ccitt((uint8_t *)&p.speed, sizeof(p)-sizeof(p.CRC));
     if (crc == p.CRC)
     {
+        if (m_ack)
+        {
+            Serial.print('G');
+        }
         DEBUGP(crc);DEBUGP("==");DEBUGPL(p.CRC);
         return true;
     }
     else
     {
+        if (m_ack)
+        {
+            Serial.print('B');
+        }
         DEBUGP(crc);DEBUGP("!=");DEBUGPL(p.CRC);
         return false;
     }
