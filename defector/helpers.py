@@ -127,6 +127,80 @@ def roi_crop(img, size=None):
 
     return size, img
 
+def correct_ambient(frame):
+    # Structuring element
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(25,25))
+    # Apply the top hat transform
+    tophat = cv2.morphologyEx(frame, cv2.MORPH_TOPHAT, kernel)
+
+    # Apply the black hat transform
+    blackhat = cv2.morphologyEx(frame, cv2.MORPH_BLACKHAT, kernel)
+
+    return frame
+
+def find_contours(frame):
+    # find contours in the thresholded image
+    #cnts = cv2.findContours(frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    #contours, hierarchy = cv2.findContours(frame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # loop over the contours
+    #for c in contours:
+        # compute the center of the contour
+    M = cv2.moments(frame)
+    cX = int(M["m10"] / M["m00"])
+    cY = int(M["m01"] / M["m00"])
+
+    # put text and highlight the center
+    #cv2.circle(img, (cX, cY), 5, (255, 255, 255), -1)
+    #cv2.putText(img, "centroid", (cX - 25, cY - 25),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+    # draw the contour and center of the shape on the image
+    #cv2.drawContours(frame, [c], -1, (0, 255, 0), 2)
+    cv2.circle(frame, (cX, cY), 7, (255, 255, 255), -1)
+    cv2.putText(frame, "center", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+    
+    return frame
+
+def blob_detection(frame):
+
+    # Setup SimpleBlobDetector parameters.
+    params = cv2.SimpleBlobDetector_Params()
+
+    # Change thresholds
+    params.minThreshold = 0
+    params.maxThreshold = 255
+
+    # Filter by Area.
+    params.filterByArea = False
+#    params.minArea = 1500
+
+    # Filter by Circularity
+    params.filterByCircularity = True
+    params.minCircularity = 0.1
+
+    # Filter by Convexity
+    params.filterByConvexity = False
+    params.minConvexity = 0.87
+
+    # Filter by Inertia
+    params.filterByInertia = False
+    params.minInertiaRatio = 0.01
+
+    # Create a detector with the parameters
+    ver = (cv2.__version__).split('.')
+    if int(ver[0]) < 3:
+        detector = cv2.SimpleBlobDetector(params)
+    else:
+        detector = cv2.SimpleBlobDetector_create(params)
+
+    # Detect blobs.
+    keypoints = detector.detect(frame)
+    
+    # Draw detected blobs as red circles.
+    # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
+    im_with_keypoints = cv2.drawKeypoints(frame, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+    return im_with_keypoints
+
 
 def sort_key_func(s):
     """Return the first number you find in string. 0 if not"""

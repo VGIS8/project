@@ -6,7 +6,7 @@ import cv2
 from milc import cli
 
 from defector.argument_types import dir_path
-from defector.helpers import roi_crop, get_folder
+from defector.helpers import roi_crop, get_folder, blob_detection, find_contours
 
 
 @cli.argument('-d', '--distance', help='The distance in frames to diff over', type=int, default=1)
@@ -41,6 +41,7 @@ def framediff(cli):
             size, background = roi_crop(background, size)
             _, frame = roi_crop(frame, size)
 
-        diff = cv2.absdiff(background, frame)
-        _, binary = cv2.threshold(diff, 5, 255, cv2.THRESH_BINARY)
-        cv2.imwrite(str(cli.config.framediff.output.joinpath(f'out{idx}.png')), binary)
+        _, binary = cv2.threshold(background, 120, 255, cv2.THRESH_BINARY)
+        blobbed = blob_detection(binary)
+
+        cv2.imwrite(str(cli.config.framediff.output.joinpath(f'out{idx}.png')), blobbed)
