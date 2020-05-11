@@ -22,7 +22,7 @@ void setup()
 
 void update_speed(int speed)
 {
-  //Timer1.pwm(ESC_PIN, speed);
+  Timer1.pwm(ESC_PIN, speed);
 }
 
 
@@ -37,10 +37,10 @@ void loop()
     Accel.set_decel(p.deceleration);
     if(p.speed < 0)
     {
-      //p.speed *= -1;
+      p.speed *= -1;
     }
-    //Accel.set_speed(map(p.speed, 0, 1000, 1023/2, 1023));
+    Accel.set_speed(map(p.speed, 0, 1000, 1023/2, 1023));
 
-    Serial.print("s:");Serial.print(p.speed); Serial.print(" a:");Serial.print(p.acceleration); Serial.print(" d:");Serial.print(p.deceleration); Serial.print(" c:");Serial.print(p.CRC, HEX);Serial.print('\n');
+    //Serial.print("s:");Serial.print(p.speed); Serial.print(" a:");Serial.print(p.acceleration); Serial.print(" d:");Serial.print(p.deceleration); Serial.print(" c:");Serial.print(p.CRC, HEX);Serial.print('\n');
   }
 }

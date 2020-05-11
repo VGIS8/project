@@ -104,7 +104,7 @@ class Accelerator
                 OCR2A = m_us_per_unit_per_s[1] / m_counter_step_size;
                 m_direction = 1;
             }
-            Serial.println(OCR2A);
+            //Serial.println(OCR2A);
             m_target_speed = speed;
 
             if (constrain)
