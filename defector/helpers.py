@@ -130,12 +130,12 @@ def roi_crop(img, size=None):
 
 def correct_ambient(frame):
     # Structuring element
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
 
     # Apply the black hat transform
-    blackhat = cv2.morphologyEx(frame, cv2.MORPH_BLACKHAT, kernel)
+    corrected = cv2.morphologyEx(frame, cv2.MORPH_BLACKHAT, kernel)
 
-    return blackhat
+    return corrected
 
 
 def draw_lines(frame, background):
@@ -159,18 +159,22 @@ def find_contours(frame):
     b = a - 15
     darker = np.uint8(b)
 
-    edged = cv2.Canny(darker, 120, 255)
+    _, binary = cv2.threshold(darker, 120, 255, cv2.THRESH_BINARY_INV)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    bigger = cv2.dilate(binary, kernel)
+
+    edged = cv2.Canny(bigger, 120, 255)
 
     cv2.imshow("org", frame)
-    cv2.imshow("corrected", darker)
+    cv2.imshow("corrected", bigger)
     cv2.imshow("edged", edged)
     cv2.waitKey(1)
 
     contours, hierarchy = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     print("Number of Contours found = " + str(len(contours)))
 
-    max_idx = None
-    max_area = None
+    max_idx = 0
+    max_area = 0
     for idx, contour in enumerate(contours):
         x = cv2.contourArea(contour)
         try:
