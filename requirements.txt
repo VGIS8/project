@@ -6,3 +6,4 @@ flake8>=3.7.9
 milc>=1.0.2
 pyserial>=3.4
 crcmod>=1.7
+scipy
