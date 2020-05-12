@@ -1,6 +1,7 @@
 import shutil
 import os
 from pathlib import Path
+from time import sleep
 
 import cv2
 from milc import cli
@@ -25,6 +26,7 @@ def framediff(cli):
             shutil.rmtree(cli.config.framediff.output)
             while cli.config.framediff.output.is_dir():
                 pass
+            sleep(0.5)
         else:
             cli.log.error(f'{str(cli.config.framediff.output)} already exists, and overwrite isn\'t forced')
             return False
