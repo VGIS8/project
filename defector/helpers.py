@@ -9,6 +9,7 @@ import re
 
 import cv2
 import numpy as np
+from matplotlib import pyplot as plt
 
 from pymba import Vimba, VimbaException, Frame
 
@@ -94,10 +95,10 @@ def roi_crop(img, size=None):
         Returns:
             A cropped image
     """
+    #img = cv2.copyMakeBorder(img, 10, 10, 10, 10, cv2.BORDER_CONSTANT, None, 0)
 
-    img = cv2.copyMakeBorder(img, 10, 10, 10, 10, cv2.BORDER_CONSTANT, None, 0)
-
-    _, threshed_img = cv2.threshold(img, 40, 255, cv2.THRESH_BINARY)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, threshed_img = cv2.threshold(gray, 40, 255, cv2.THRESH_BINARY)
     # find contours and get the external one
 
     kernel = np.ones((15, 15), np.uint8)
@@ -108,7 +109,6 @@ def roi_crop(img, size=None):
     chosen_contour = max(contours, key=cv2.contourArea)
 
     x, y, w, h = cv2.boundingRect(chosen_contour)
-    # draw a green rectangle to visualize the bounding rect
 
     if size is None:
         size = [x, y, w, h]
@@ -126,6 +126,119 @@ def roi_crop(img, size=None):
     img = dst[y:y + h, x:x + w]
 
     return size, img
+
+def correct_ambient(frame):
+    # Structuring element
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(15,15))
+    # Apply the top hat transform
+    #tophat = cv2.morphologyEx(frame, cv2.MORPH_TOPHAT, kernel)
+
+    # Apply the black hat transform
+    blackhat = cv2.morphologyEx(frame, cv2.MORPH_BLACKHAT, kernel)
+
+    return blackhat
+
+def draw_lines(frame, background):
+
+    return frame
+
+def make_hist(frame):
+    #hist = cv2.calcHist([frame],[0],None,[256],[0,256])
+    plt.hist(frame.ravel(),256,[0,256]); plt.show()
+    return frame
+
+def find_contours(frame):
+  
+    gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    # Find Canny edges 
+    ca = correct_ambient(gray)
+
+    a = np.double(ca)
+    b = a - 15
+    darker = np.uint8(b)
+
+    edged = cv2.Canny(darker, 120, 255)
+    
+    #cv2.imshow("corrected", darker)
+    #cv2.imshow("edged", edged)
+    #cv2.waitKey(1)
+
+    contours, hierarchy = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE) 
+    print("Number of Contours found = " + str(len(contours))) 
+
+    max_idx = None
+    max_area = None
+    for idx, contour in enumerate(contours):
+        x = cv2.contourArea(contour)
+        try:
+            if x > max_area:
+                max_area = x
+                max_idx = idx
+        except TypeError:
+            continue
+
+    del contours[max_idx]
+    
+    cv2.drawContours(frame, contours, -1, (0, 0, 255), 2)
+
+    centers = []
+    # loop over the contours
+    for i, c in enumerate(contours):
+
+        M = cv2.moments(c)
+        # compute the center of the contour
+        if M["m00"] != 0:
+            cX = int(M["m10"] / M["m00"])
+            cY = int(M["m01"] / M["m00"])
+        else:
+        # set values instead
+            cX, cY = 0, 0
+
+        centers.append([cX, cY])
+
+        # draw the contour and center of the shape on the image
+        cv2.drawContours(frame, [c], -1, (0, 255, 0), 2)
+        cv2.circle(frame, (cX, cY), 2, (255, 0, 0), 1)
+        cv2.putText(frame, "glitter", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    
+    return frame
+
+def blob_detection(frame):
+
+    # Setup SimpleBlobDetector parameters.
+    params = cv2.SimpleBlobDetector_Params()
+
+    # Change thresholds
+    params.minThreshold = 0
+    params.maxThreshold = 255
+    # Filter by Area.
+    params.filterByArea = False
+#    params.minArea = 1500
+    # Filter by Circularity
+    params.filterByCircularity = True
+    params.minCircularity = 0.1
+    # Filter by Convexity
+    params.filterByConvexity = False
+    params.minConvexity = 0.87
+
+    # Filter by Inertia
+    params.filterByInertia = False
+    params.minInertiaRatio = 0.01
+
+    # Create a detector with the parameters
+    ver = (cv2.__version__).split('.')
+    if int(ver[0]) < 3:
+        detector = cv2.SimpleBlobDetector(params)
+    else:
+        detector = cv2.SimpleBlobDetector_create(params)
+
+    # Detect blobs.
+    keypoints = detector.detect(frame)
+    # Draw detected blobs as red circles.
+    # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
+    im_with_keypoints = cv2.drawKeypoints(frame, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+    return im_with_keypoints
 
 
 def sort_key_func(s):
