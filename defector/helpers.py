@@ -165,10 +165,10 @@ def find_contours(frame):
 
     edged = cv2.Canny(bigger, 120, 255)
 
-    cv2.imshow("org", frame)
-    cv2.imshow("corrected", bigger)
-    cv2.imshow("edged", edged)
-    cv2.waitKey(1)
+    #cv2.imshow("org", frame)
+    #cv2.imshow("corrected", bigger)
+    #cv2.imshow("edged", edged)
+    #cv2.waitKey(1)
 
     contours, hierarchy = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     print("Number of Contours found = " + str(len(contours)))
@@ -187,7 +187,6 @@ def find_contours(frame):
     del contours[max_idx]
 
     cv2.drawContours(frame, contours, -1, (0, 0, 255), 2)
-
     centers = []
     # loop over the contours
     for i, c in enumerate(contours):
@@ -208,8 +207,7 @@ def find_contours(frame):
         cv2.circle(frame, (cX, cY), 2, (255, 0, 0), 1)
         cv2.putText(frame, "glitter", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-    return frame
-
+    return centers
 
 def blob_detection(frame):
 

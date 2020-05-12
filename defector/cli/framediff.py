@@ -8,6 +8,7 @@ from milc import cli
 
 from defector.argument_types import dir_path
 from defector.helpers import roi_crop, get_folder, blob_detection, find_contours, correct_ambient, make_hist
+from defector.tracker import Tracker
 
 
 @cli.argument('-d', '--distance', help='The distance in frames to diff over', type=int, default=1)
@@ -33,8 +34,18 @@ def framediff(cli):
     os.makedirs(cli.config.framediff.output)
 
     images = get_folder(cli.config.framediff.input.resolve())
-
+    center_points = []
     size = None
+
+    # Create Object Tracker
+    tracker = Tracker(160, 5, 100, 100)
+
+    # Variables initialization
+    skip_frame_count = 0
+    track_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
+                    (0, 255, 255), (255, 0, 255), (255, 127, 255),
+                    (127, 0, 255), (127, 0, 127)]
+
     for idx, img in enumerate(images[:-cli.config.framediff.distance]):
         background = cv2.imread(img, cv2.IMREAD_COLOR)
         frame = cv2.imread(images[idx + cli.config.framediff.distance], cv2.IMREAD_COLOR)
@@ -45,7 +56,23 @@ def framediff(cli):
 
         #_, binary = cv2.threshold(background, 120, 255, cv2.THRESH_BINARY)
         #blobbed = blob_detection(binary)
+        
+        center_points = find_contours(background)
 
-        centers = find_contours(background)
+        tracker.Update(center_points)
 
-        cv2.imwrite(str(cli.config.framediff.output.joinpath(f'out{idx}.png')), centers)
+        # For identified object tracks draw tracking line
+        # Use various colors to indicate different track_id
+        for i in range(len(tracker.tracks)):
+            if (len(tracker.tracks[i].trace) > 1):
+                for j in range(len(tracker.tracks[i].trace)-1):
+                    # Draw trace line
+                    x1 = tracker.tracks[i].trace[j][0][0]
+                    y1 = tracker.tracks[i].trace[j][1][0]
+                    x2 = tracker.tracks[i].trace[j+1][0][0]
+                    y2 = tracker.tracks[i].trace[j+1][1][0]
+                    clr = tracker.tracks[i].track_id % 9
+                    cv2.line(background, (int(x1), int(y1)), (int(x2), int(y2)),
+                                track_colors[clr], 2)
+
+        cv2.imwrite(str(cli.config.framediff.output.joinpath(f'out{idx}.png')), background)
