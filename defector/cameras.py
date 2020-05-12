@@ -27,6 +27,8 @@ class PymbaCam:
             raise NotImplementedError(f"{mode} is not a valid mode or not implemented. Use Continuous")
 
         self.camera.open()
+        exposure = self.camera.feature('ExposureTimeAbs')
+        exposure.value = 1000
         self.camera.arm('Continuous', self.continous_cb)
 
     def __del__(self):
