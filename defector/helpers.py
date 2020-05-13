@@ -186,8 +186,9 @@ def find_contours(frame):
 
     del contours[max_idx]
 
-    cv2.drawContours(frame, contours, -1, (0, 0, 255), 2)
-    centers = []
+    cv2.drawContours(frame, contours, -1, (0, 0, 255), 1)
+    centers = []  # vector of object centroids in a frame
+
     # loop over the contours
     for i, c in enumerate(contours):
 
@@ -199,13 +200,32 @@ def find_contours(frame):
         else:
             # set values instead
             cX, cY = 0, 0
-
-        centers.append([cX, cY])
+        b = np.array([[cX], [cY]])
+        centers.append(np.round(b))
 
         # draw the contour and center of the shape on the image
-        cv2.drawContours(frame, [c], -1, (0, 255, 0), 2)
+        #cv2.drawContours(frame, [c], -1, (0, 255, 0), 2)
         cv2.circle(frame, (cX, cY), 2, (255, 0, 0), 1)
-        cv2.putText(frame, "glitter", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        #cv2.putText(frame, "glitter", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+#    centers = []  # vector of object centroids in a frame
+        # we only care about centroids with size of bug in this example
+        # recommended to be tunned based on expected object size for
+        # improved performance
+#    blob_radius_thresh = 1
+
+#    for cnt in contours:
+#        try:
+            # Calculate and draw circle
+#            (x, y), radius = cv2.minEnclosingCircle(cnt)
+#            centeroid = (int(x), int(y))
+#            radius = int(radius)
+#            if (radius > blob_radius_thresh):
+#                cv2.circle(frame, centeroid, radius, (0, 255, 0), 2)
+#                b = np.array([[x], [y]])
+#                centers.append(np.round(b))
+#        except ZeroDivisionError:
+#            pass
 
     return centers
 

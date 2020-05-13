@@ -38,7 +38,7 @@ def framediff(cli):
     size = None
 
     # Create Object Tracker
-    tracker = Tracker(160, 5, 100, 100)
+    tracker = Tracker(160, 5, 3, 100)
 
     # Variables initialization
     skip_frame_count = 0
@@ -72,7 +72,30 @@ def framediff(cli):
                     x2 = tracker.tracks[i].trace[j+1][0][0]
                     y2 = tracker.tracks[i].trace[j+1][1][0]
                     clr = tracker.tracks[i].track_id % 9
-                    cv2.line(background, (int(x1), int(y1)), (int(x2), int(y2)),
-                                track_colors[clr], 2)
+                    cv2.line(background, (int(x1), int(y1)), (int(x2), int(y2)), track_colors[clr], 1)
+
+        # Display the resulting tracking frame
+        cv2.imshow('Tracking', background)
+
+        # Slower the FPS
+        cv2.waitKey(50)
+
+        # Check for key strokes
+        k = cv2.waitKey(50) & 0xff
+        if k == 27:  # 'esc' key has been pressed, exit program.
+            break
+        if k == 112:  # 'p' has been pressed. this will pause/resume the code.
+            pause = not pause
+            if (pause is True):
+                print("Code is paused. Press 'p' to resume..")
+                while (pause is True):
+                    # stay in this loop until
+                    key = cv2.waitKey(30) & 0xff
+                    if key == 112:
+                        pause = False
+                        print("Resume code..!!")
+                        break
 
         cv2.imwrite(str(cli.config.framediff.output.joinpath(f'out{idx}.png')), background)
+    cv2.destroyAllWindows()
+
