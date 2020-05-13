@@ -21,6 +21,8 @@ class PymbaCam:
         self.camera = self.vimba.camera(cam_idx)
 
         self.is_last_frame = True
+        self.framerate = 0
+        self.framerate_sum = 0
         self.img_buffer = []
         self.img_ID = 0
         if mode not in 'Continuous':  # SingleFrame']:
@@ -65,6 +67,7 @@ class PymbaCam:
         except KeyError:
             pass
 
+        self.framerate_sum += self.camera.AcquisitionFrameRateAbs
         self.img_buffer.append(image)
 
     def capture(self, num_of_images=100):
@@ -77,6 +80,8 @@ class PymbaCam:
 
         self.camera.stop_frame_acquisition()
 
+        self.framerate = self.framerate_sum / len(self.img_buffer)
+        print(self.framerate)
         print(len(self.img_buffer))
         print(self.img_ID)
 
