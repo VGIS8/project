@@ -81,6 +81,7 @@ class PymbaCam:
         self.camera.stop_frame_acquisition()
 
         self.framerate = self.framerate_sum / len(self.img_buffer)
+        print(f"Average framerate: {self.framerate}")
         print(self.framerate)
         print(len(self.img_buffer))
         print(self.img_ID)

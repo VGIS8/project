@@ -149,6 +149,20 @@ def make_hist(frame):
     return frame
 
 
+def get_centroid(contours):
+    M = cv2.moments(contours)
+
+    # compute the centroid of the contour
+    if M["m00"] != 0:
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+    else:
+        # set values instead
+        cX, cY = 0, 0
+
+    return cX, cY
+
+
 def find_contours(frame):
 
     gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
@@ -165,10 +179,10 @@ def find_contours(frame):
 
     edged = cv2.Canny(bigger, 120, 255)
 
-    cv2.imshow("org", frame)
-    cv2.imshow("corrected", bigger)
-    cv2.imshow("edged", edged)
-    cv2.waitKey(1)
+    # cv2.imshow("org", frame)
+    # cv2.imshow("corrected", bigger)
+    # cv2.imshow("edged", edged)
+    # cv2.waitKey(1)
 
     contours, hierarchy = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     print("Number of Contours found = " + str(len(contours)))
@@ -192,23 +206,13 @@ def find_contours(frame):
     # loop over the contours
     for i, c in enumerate(contours):
 
-        M = cv2.moments(c)
-        # compute the center of the contour
-        if M["m00"] != 0:
-            cX = int(M["m10"] / M["m00"])
-            cY = int(M["m01"] / M["m00"])
-        else:
-            # set values instead
-            cX, cY = 0, 0
+        centroid = get_centroid(c)
+        centers.append(centroid)
 
-        centers.append([cX, cY])
+        # draw the  center of the shape on the image
+        cv2.circle(frame, centroid, 2, (255, 0, 0), 1)
 
-        # draw the contour and center of the shape on the image
-        cv2.drawContours(frame, [c], -1, (0, 255, 0), 2)
-        cv2.circle(frame, (cX, cY), 2, (255, 0, 0), 1)
-        cv2.putText(frame, "glitter", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-
-    return frame
+    return contours, frame
 
 
 def blob_detection(frame):

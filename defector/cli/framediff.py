@@ -43,9 +43,9 @@ def framediff(cli):
             size, background = roi_crop(background, size)
             _, frame = roi_crop(frame, size)
 
-        #_, binary = cv2.threshold(background, 120, 255, cv2.THRESH_BINARY)
-        #blobbed = blob_detection(binary)
+        # _, binary = cv2.threshold(background, 120, 255, cv2.THRESH_BINARY)
+        # blobbed = blob_detection(binary)
 
-        centers = find_contours(background)
+        contours, center_img = find_contours(background)
 
-        cv2.imwrite(str(cli.config.framediff.output.joinpath(f'out{idx}.png')), centers)
+        cv2.imwrite(str(cli.config.framediff.output.joinpath(f'out{idx}.png')), center_img)
