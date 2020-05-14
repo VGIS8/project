@@ -9,7 +9,8 @@ import re
 
 import cv2
 import numpy as np
-#from matplotlib import pyplot as plt
+from scipy.spatial.distance import euclidean
+# from matplotlib import pyplot as plt
 
 from pymba import Vimba, VimbaException, Frame
 
@@ -144,8 +145,8 @@ def draw_lines(frame, background):
 
 
 def make_hist(frame):
-    #plt.hist(frame.ravel(), 256, [0, 256])
-    #plt.show()
+    # plt.hist(frame.ravel(), 256, [0, 256])
+    # plt.show()
     return frame
 
 
@@ -160,7 +161,8 @@ def get_centroid(contours):
         # set values instead
         cX, cY = 0, 0
 
-    return cX, cY
+    c_all = np.array([[cX], [cY]])
+    return c_all
 
 
 def find_contours(frame):
@@ -200,19 +202,115 @@ def find_contours(frame):
 
     del contours[max_idx]
 
-    cv2.drawContours(frame, contours, -1, (0, 0, 255), 2)
+    #cv2.drawContours(frame, contours, -1, (0, 0, 255), 2)
 
-    centers = []
+    #centers = []
     # loop over the contours
     for i, c in enumerate(contours):
-
+    
         centroid = get_centroid(c)
-        centers.append(centroid)
+        #centers.append((centroid[0][0], centroid[1][0]))
 
         # draw the  center of the shape on the image
-        cv2.circle(frame, centroid, 2, (255, 0, 0), 1)
+        cv2.circle(frame, (centroid[0][0], centroid[1][0]), 2, (255, 0, 0), 1)
 
     return contours, frame
+
+
+# [[x,y], instances, found(bool)]
+reference_points = None
+
+
+class ReferencePoint:
+    def __init__(self, point):
+        self.point = point
+        self.life = 0
+        self.skipped_frames = 0
+        self.found = False
+
+
+reference_points = None
+
+
+def remove_stationary_contours(contours, thresh=0.5, interval=10, max_skipped_frames=1, max_referance_points=100):
+    global reference_points
+    """ Removes contours that don't move
+        more than threshhold over interval frames
+
+        Args:
+            contours: List of contours to filter.
+            thresh: Max distance a contour can move while still being considered stationary
+            interval: The number of concecutive frames it has to be stationary for
+
+        Returns:
+            contours: List of contours with stationary contours removed
+    """
+
+    centroids = [get_centroid(contour) for contour in contours]
+    unassigned_centroids = centroids
+
+    # 0: Get all centroids
+
+    # 2: If first time, take these as reference point
+    # 3: If new centroids are within x range of reference point, consider them the same as reference point
+    # 4: If points aren't within any reference point, consider them as new reference points
+    # 5: If no points are wihtin x range of reference point, discard reference point
+
+    # If we don't have any history
+    if reference_points is None:
+        reference_points = [ReferencePoint(centroid) for centroid in unassigned_centroids]
+        return contours
+
+    # Set "found" state to false
+    for point in reference_points:
+        point.found = False
+
+    discarded_contours = []
+    assigned_centroids = []
+    for idx_c, centroid in enumerate(unassigned_centroids):
+        for idx_rp, point in enumerate(reference_points):
+            # If the centroid is within <thresh> of a reference point, consider it the reference point
+            #print(euclidean(centroid, point.point))
+            if euclidean(centroid, point.point) <= thresh:
+                if idx_c not in assigned_centroids:
+                    assigned_centroids.append(idx_c)
+                point.life += 1
+                point.found = True
+                point.skipped_frames = 0
+                if point.life >= interval:
+                    if idx_c not in discarded_contours:
+                        discarded_contours.append(idx_c)
+    
+    # Remove assigned points from the unassigned list
+    for idx_c in sorted(assigned_centroids, reverse=True):
+        del unassigned_centroids[idx_c]
+
+    # Assign any unassigned centroids as new reference points
+    for centroid in unassigned_centroids:
+        if len(reference_points) < max_referance_points:
+            reference_points.append(ReferencePoint(centroid))
+        else:
+            pass
+            # print("Max reference points reached")
+
+    discarded_reference_points = []
+    # Remove any reference points that haven't been found for <max_skipped_frames> frames
+    for idx_rp, point in enumerate(reference_points):
+        if not point.found:
+            point.skipped_frames += 1
+            if point.skipped_frames > max_skipped_frames:
+                if idx_rp not in discarded_reference_points:
+                    discarded_reference_points.append(idx_rp)
+    
+    for idx_rp in sorted(discarded_reference_points, reverse=True):
+        del reference_points[idx_rp]
+
+    # Remove contours that appear stationary
+    for idx_c in sorted(discarded_contours, reverse=True):
+        del contours[idx_c]
+        pass
+
+    return contours
 
 
 def blob_detection(frame):

@@ -14,9 +14,11 @@
 import numpy as np
 
 from scipy.optimize import linear_sum_assignment
+from scipy.spatial.distance import euclidean
 from filterpy.kalman import KalmanFilter
 
 from defector.helpers import get_centroid
+from cv2 import contourArea
 
 
 class Track:
@@ -25,7 +27,7 @@ class Track:
         None
     """
 
-    def __init__(self, prediction, trackIdCount):
+    def __init__(self, prediction, trackIdCount, contour_size):
         """Initialize variables used by Track class
         Args:
             prediction: predicted centroids of object to be tracked
@@ -35,12 +37,13 @@ class Track:
         """
         self.track_id = trackIdCount  # identification of each track object
         self.KF = KalmanFilter(2, 2)  # KF instance to track this object
-        self.dt = 0.024
-        self.KF.F = np.array([1, self.dt], [0, 1])  # State transition matrix
+        self.dt = 0.005
+        self.KF.F = np.array([[1, self.dt], [0, 1]])  # State transition matrix
         self.KF.P = np.diag((3.0, 3.0))  # covarianse matrix
-        self.KF.H = np.array([1, 0], [0, 1])  # matrix in observation equations / measurment function
+        self.KF.H = np.array([[1, 0], [0, 1]])  # matrix in observation equations / measurment function
 
         self.prediction = np.asarray(prediction)  # predicted centroids (x,y)
+        self.previous_size = contour_size  # the size of the previous contour
         self.skipped_frames = 0  # number of frames skipped undetected
         self.trace = []  # trace path
 
@@ -52,7 +55,7 @@ class Tracker:
     """
 
     def __init__(self, dist_thresh, max_frames_to_skip, max_trace_length,
-                 trackIdCount):
+                 trackIdCount, size_weight=0.2, distance_weight=1.0):
         """Initialize variable used by Tracker class
         Args:
             dist_thresh: distance threshold. When exceeds the threshold,
@@ -69,29 +72,32 @@ class Tracker:
         self.max_trace_length = max_trace_length
         self.tracks = []
         self.trackIdCount = trackIdCount
+        self.size_weight = size_weight
+        self.distance_weight = distance_weight
 
         # REIMPLEMENTATION MARKER: IMPLEMENTED TO HERE : REIMPLEMENTATION MARKER #
 
-    def get_cost_mse(self, size, detections):
-        cost = np.zeros(shape=size)
+    def get_cost_matrix(self, size, detections):
+        cost_matrix = np.zeros(shape=size)
 
         centroids = [get_centroid(c) for c in detections]
 
         for i in range(len(self.tracks)):
             for j in range(len(centroids)):
                 try:
-                    diff = self.tracks[i].prediction - detections[j]
-                    distance = np.sqrt(diff[0][0] * diff[0][0] +
-                                       diff[1][0] * diff[1][0])
+                    distance = euclidean(self.tracks[i].prediction, centroids[j])
+                    size_diff = np.abs(self.tracks[i].previous_size - contourArea(detections[j]))
 
-                    detections(j)
+                    # Let's average the squared ERROR
+                    distance_cost = (0.5) * distance
 
-                    cost[i][j] = distance
+                    cost = self.distance_weight * distance_cost - self.size_weight * size_diff
+
+                    cost_matrix[i][j] = cost
                 except NotADirectoryError:  # placed here to see what error the above try is trying to catch
                     pass
 
-        # Let's average the squared ERROR
-        cost = (0.5) * cost
+        return cost_matrix
 
     def Update(self, detections):
         """Update tracks vector using following steps:
@@ -115,7 +121,7 @@ class Tracker:
         # Create tracks if no tracks vector found
         if (len(self.tracks) == 0):
             for i in range(len(detections)):
-                track = Track(detections[i], self.trackIdCount)
+                track = Track(get_centroid(detections[i]), self.trackIdCount, contourArea(detections[i]))
                 self.trackIdCount += 1
                 self.tracks.append(track)
 
@@ -123,7 +129,7 @@ class Tracker:
         # predicted vs detected centroids
         N = len(self.tracks)
         M = len(detections)
-        cost = self.get_cost_mse((N, M), detections)
+        cost = self.get_cost_matrix((N, M), detections)
 
         # Using Hungarian Algorithm assign the correct detected measurements
         # to predicted tracks
@@ -167,8 +173,8 @@ class Tracker:
         # Start new tracks
         if(len(un_assigned_detects) != 0):
             for i in range(len(un_assigned_detects)):
-                track = Track(detections[un_assigned_detects[i]],
-                              self.trackIdCount)
+                track = Track(get_centroid(detections[un_assigned_detects[i]]),
+                              self.trackIdCount, contourArea(detections[un_assigned_detects[i]]))
                 self.trackIdCount += 1
                 self.tracks.append(track)
 
@@ -178,9 +184,12 @@ class Tracker:
 
             if(assignment[i] != -1):
                 self.tracks[i].skipped_frames = 0
-                self.tracks[i].prediction = self.tracks[i].KF.update(detections[assignment[i]])
+                self.tracks[i].KF.update(get_centroid(detections[assignment[i]]))
+                self.tracks[i].prediction = self.tracks[i].KF.x
+                self.tracks[i].previous_size = contourArea(detections[assignment[i]])
             else:
-                self.tracks[i].prediction = self.tracks[i].KF.update(None)
+                self.tracks[i].KF.update(None)
+                self.tracks[i].prediction = self.tracks[i].KF.x
 
             if(len(self.tracks[i].trace) > self.max_trace_length):
                 for j in range(len(self.tracks[i].trace) -

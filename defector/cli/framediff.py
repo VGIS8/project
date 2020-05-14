@@ -7,7 +7,8 @@ import cv2
 from milc import cli
 
 from defector.argument_types import dir_path
-from defector.helpers import roi_crop, get_folder, blob_detection, find_contours, correct_ambient, make_hist
+from defector.helpers import roi_crop, get_folder, blob_detection, find_contours, correct_ambient, make_hist, remove_stationary_contours, get_centroid
+from defector.tracker import Tracker
 
 
 @cli.argument('-d', '--distance', help='The distance in frames to diff over', type=int, default=1)
@@ -34,6 +35,22 @@ def framediff(cli):
 
     images = get_folder(cli.config.framediff.input.resolve())
 
+    ############# test implementation of track ##################
+    center_points = []
+    #size = None
+
+    # Create Object Tracker
+    tracker = Tracker(50, 5, 3, 100, 0.5)
+
+    # Variables initialization
+    skip_frame_count = 0
+    track_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
+                    (0, 255, 255), (255, 0, 255), (255, 127, 255),
+                    (127, 0, 255), (127, 0, 127)]
+
+
+    ##############################################################
+    
     size = None
     for idx, img in enumerate(images[:-cli.config.framediff.distance]):
         background = cv2.imread(img, cv2.IMREAD_COLOR)
@@ -47,5 +64,53 @@ def framediff(cli):
         # blobbed = blob_detection(binary)
 
         contours, center_img = find_contours(background)
+        
+        stationary_threshhold = 5
+        contours = remove_stationary_contours(contours, stationary_threshhold, 5, 10)
 
+        cv2.drawContours(center_img, contours, -1, (0, 0, 255), 2)
+        for i, c in enumerate(contours):
+
+            centroid = get_centroid(c)
+
+            # draw the  center of the shape on the image
+            cv2.circle(center_img, (centroid[0][0], centroid[1][0]), stationary_threshhold, (0, 255, 0), 1)
+
+        ################## tracker ###############
+        tracker.Update(contours)
+
+        # For identified object tracks draw tracking line
+        # Use various colors to indicate different track_id
+        for i in range(len(tracker.tracks)):
+            if (len(tracker.tracks[i].trace) > 1):
+                for j in range(len(tracker.tracks[i].trace)-1):
+                    # Draw trace line
+                    x1 = tracker.tracks[i].trace[j][0][0]
+                    y1 = tracker.tracks[i].trace[j][1][0]
+                    x2 = tracker.tracks[i].trace[j+1][0][0]
+                    y2 = tracker.tracks[i].trace[j+1][1][0]
+                    clr = tracker.tracks[i].track_id % 9
+                    cv2.line(center_img, (int(x1), int(y1)), (int(x2), int(y2)), track_colors[clr], 1)
+
+        # Display the resulting tracking frame
+        cv2.imshow('Tracking', center_img)
+        cv2.waitKey(50)
+
+        # Check for key strokes
+        k = cv2.waitKey(50) & 0xff
+        if k == 27:  # 'esc' key has been pressed, exit program.
+            break
+        if k == 112:  # 'p' has been pressed. this will pause/resume the code.
+            pause = not pause
+            if (pause is True):
+                print("Code is paused. Press 'p' to resume..")
+                while (pause is True):
+                    # stay in this loop until
+                    key = cv2.waitKey(30) & 0xff
+                    if key == 112:
+                        pause = False
+                        print("Resume code..!!")
+                        break
+        ###########################################
         cv2.imwrite(str(cli.config.framediff.output.joinpath(f'out{idx}.png')), center_img)
+    cv2.destroyAllWindows()
