@@ -24,7 +24,7 @@ class PymbaCam:
         self.framerate = 0
         self.framerate_sum = 0
         self.img_buffer = []
-        self.img_ids = []
+        self.img_IDs = []
         if mode not in 'Continuous':  # SingleFrame']:
             raise NotImplementedError(f"{mode} is not a valid mode or not implemented. Use Continuous")
 
@@ -52,13 +52,14 @@ class PymbaCam:
 
         # If the frame is incomplte, discard it (VmbFrame_t.receiveStatus does not equal VmbFrameStatusComplete)
         if frame.data.receiveStatus == -1:
+            print(f"Incomplete frame: ID{frame.data.frameID}")
             return
 
         # get a copy of the frame data
         try:
             image = frame.buffer_data_numpy()
-        except NotImplementedError as err:
-            print(f'noe{err}')
+        except NotImplementedError:
+            print(f"Empty frame: ID{frame.data.frameID}")
             return
 
         # convert colour space if desired
@@ -67,7 +68,7 @@ class PymbaCam:
         except KeyError:
             pass
 
-        self.img_ids[-1][1] = True
+        self.img_IDs[-1][1] = True
         self.framerate_sum += self.camera.AcquisitionFrameRateAbs
         self.img_buffer.append(image)
 
@@ -83,9 +84,7 @@ class PymbaCam:
 
         self.framerate = self.framerate_sum / len(self.img_buffer)
         print(f"Average framerate: {self.framerate}")
-        print(self.framerate)
-        print(len(self.img_buffer))
-        print(self.img_ID)
+        print(f"Good frames {len(self.img_buffer)}/{len(self.img_IDs)}")
 
     def save_images(self, dir, overwrite=False):
         """Save the image buffer to a folder of frames
@@ -94,6 +93,7 @@ class PymbaCam:
             dir:        The directory to save the images in.
             overwrite:  If the folder should be removed if it exists. Default: False
         """
+        print("Saving images:")
 
         out_dir = Path(dir)
         if out_dir.is_dir():
@@ -105,8 +105,17 @@ class PymbaCam:
                 pass
 
         os.makedirs(out_dir)
-        for idx, img in enumerate(self.img_buffer):
+        for img in self.img_buffer:
+
+            # Get the next valid frame ID
+            idx = self.img_IDs.pop(0)
+            while not idx[1]:
+                idx = self.img_ID
+                self.img_IDs.pop(0)
+            idx = idx[0]
+
             cv.imwrite(f'{out_dir.as_posix()}/VimbaImage_{idx}.png', img)
+            print(f"\t{out_dir.as_posix()}/VimbaImage_{idx}.png")
         print('\a')
 
     idx = 0
