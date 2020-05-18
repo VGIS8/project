@@ -1,0 +1,8 @@
+{signal: [
+  {name: 'PC->MCU', wave: 'x23.3.3.4.x.', data: ['!', 'speed', 'accel', 'decel', 'CRC16'],phase:0.15},
+  {name: 'MCU->PC', wave:'x.........2x', data:['A/N'], phase:0.15}
+],
+ foot:{
+      tock:-2
+    }
+}

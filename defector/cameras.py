@@ -24,7 +24,7 @@ class PymbaCam:
         self.framerate = 0
         self.framerate_sum = 0
         self.img_buffer = []
-        self.img_ID = 0
+        self.img_ids = []
         if mode not in 'Continuous':  # SingleFrame']:
             raise NotImplementedError(f"{mode} is not a valid mode or not implemented. Use Continuous")
 
@@ -48,7 +48,7 @@ class PymbaCam:
 
         """
 
-        self.img_ID = frame.data.frameID
+        self.img_IDs.append([frame.data.frameID, False])
 
         # If the frame is incomplte, discard it (VmbFrame_t.receiveStatus does not equal VmbFrameStatusComplete)
         if frame.data.receiveStatus == -1:
@@ -67,6 +67,7 @@ class PymbaCam:
         except KeyError:
             pass
 
+        self.img_ids[-1][1] = True
         self.framerate_sum += self.camera.AcquisitionFrameRateAbs
         self.img_buffer.append(image)
 

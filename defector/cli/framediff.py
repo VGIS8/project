@@ -40,7 +40,7 @@ def framediff(cli):
     #size = None
 
     # Create Object Tracker
-    tracker = Tracker(50, 5, 3, 100, 0.5)
+    tracker = Tracker(50, 5, 5, 100, 0.5)
 
     # Variables initialization
     skip_frame_count = 0

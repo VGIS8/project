@@ -207,7 +207,7 @@ def find_contours(frame):
     #centers = []
     # loop over the contours
     for i, c in enumerate(contours):
-    
+
         centroid = get_centroid(c)
         #centers.append((centroid[0][0], centroid[1][0]))
 
@@ -222,11 +222,12 @@ reference_points = None
 
 
 class ReferencePoint:
-    def __init__(self, point):
+    def __init__(self, point, area=0):
         self.point = point
         self.life = 0
         self.skipped_frames = 0
         self.found = False
+        self.area = area
 
 
 reference_points = None
@@ -280,7 +281,7 @@ def remove_stationary_contours(contours, thresh=0.5, interval=10, max_skipped_fr
                 if point.life >= interval:
                     if idx_c not in discarded_contours:
                         discarded_contours.append(idx_c)
-    
+
     # Remove assigned points from the unassigned list
     for idx_c in sorted(assigned_centroids, reverse=True):
         del unassigned_centroids[idx_c]
@@ -301,7 +302,7 @@ def remove_stationary_contours(contours, thresh=0.5, interval=10, max_skipped_fr
             if point.skipped_frames > max_skipped_frames:
                 if idx_rp not in discarded_reference_points:
                     discarded_reference_points.append(idx_rp)
-    
+
     for idx_rp in sorted(discarded_reference_points, reverse=True):
         del reference_points[idx_rp]
 
