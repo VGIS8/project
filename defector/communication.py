@@ -21,7 +21,7 @@ def set_speed(speed, acceleration, deceleration=None):
     if deceleration is None:
         deceleration = acceleration
 
-    if not -1000 <= speed <= 1000:
+    if not (-1000 <= speed <= 1000):
         raise ValueError(f'{speed} is outside the permitted range (-1000 to 1000)')
 
     speed = speed.to_bytes(2, byteorder='little', signed=True)
@@ -37,10 +37,10 @@ def set_speed(speed, acceleration, deceleration=None):
     ser = serial.Serial()
     ser.baudrate = 115200
     ser.port = port
-    ser.timeout = 2
+    ser.timeout = 10
     ser.dtr = None
 
     with ser as com:
         com.write(b'!' + packet)
         line = com.readline()
-        print(line)
+        print(line.decode())
