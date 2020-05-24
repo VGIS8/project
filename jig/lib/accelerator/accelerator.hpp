@@ -104,7 +104,7 @@ class Accelerator
                 OCR2A = m_us_per_unit_per_s[1] / m_counter_step_size;
                 m_direction = 1;
             }
-            //Serial.println(OCR2A);
+            Serial.print(" "); Serial.print(OCR2A, HEX);Serial.print(" "); 
             m_target_speed = speed;
 
             if (constrain)
@@ -152,7 +152,8 @@ class Accelerator
            }
            else
            {
-               if (--m_current_speed <= m_min_speed)
+               --m_current_speed;
+               if (m_current_speed <= m_min_speed && constrain)
                {
                    m_current_speed = m_min_speed;
                    timer_stop();
@@ -172,6 +173,7 @@ class Accelerator
             m_current_speed,
             m_min_speed, 
             m_max_speed;
+        static unsigned long m_time_to_accel;
 
         /**
          * If we're currently accelerating(1) or decelerating(0)
@@ -188,10 +190,11 @@ class Accelerator
          */
         static void timer_start() __attribute__((always_inline))
         {
+            m_time_to_accel = millis();
             TCNT2 = 0; // Clear the timer
             TCCR2A |= _BV(WGM21); // CTC mode
-            TCCR2B |= _BV(CS22) | _BV(CS21) | _BV(CS20); // 2040uS period, 8uS steps
-            TIMSK2 |= _BV(OCIE2A); // Intterupt on compare match
+            TCCR2B |= _BV(CS22) | _BV(CS21) | _BV(CS20); // 15320uS period, 64uS steps
+            TIMSK2 |= _BV(OCIE2A); // Interrupt on compare match
         }
 
         /**
@@ -199,12 +202,15 @@ class Accelerator
          */
         static void timer_stop() __attribute__((always_inline))
         {
+            Serial.println(millis() - m_time_to_accel);
             TCCR2B &= ~(_BV(CS22) | _BV(CS21) | _BV(CS20));
             TIMSK2 &= ~_BV(OCIE2A);
         }
 
     private:
+
         
+        // The amount of time to wait between increasing the speed per 1 unit/s
         unsigned long m_us_per_unit_per_s[2];
 
         /**
@@ -222,6 +228,7 @@ int Accelerator::m_target_speed = 0;
 int Accelerator::m_current_speed = 0;
 int Accelerator::m_min_speed = 0;
 int Accelerator::m_max_speed = 0;
+unsigned long Accelerator::m_time_to_accel = 0;
 
 void (*Accelerator::m_cb)(int) = NULL;
 

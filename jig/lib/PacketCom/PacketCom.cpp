@@ -70,7 +70,7 @@ bool PacketCom::m_check_crc(Packet p)
     {
         if (m_ack)
         {
-            Serial.print('G');
+            Serial.print('A');
         }
         DEBUGP(crc);DEBUGP("==");DEBUGPL(p.CRC);
         return true;
@@ -79,7 +79,7 @@ bool PacketCom::m_check_crc(Packet p)
     {
         if (m_ack)
         {
-            Serial.print('B');
+            Serial.print('N');
         }
         DEBUGP(crc);DEBUGP("!=");DEBUGPL(p.CRC);
         return false;
