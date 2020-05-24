@@ -4,7 +4,7 @@
     Original Author         : Srini Ananthakrishnan
     Date created            : 2017-07-14
     Defector implementation : 2020-05-10
-    Defector implementor    : VGIS8 20GR840 AAU
+    Defector implementer    : VGIS8 20GR840 AAU
     Python Version          : 3.6
 
     The classes in this file are re-implementations of the work done by Srini Ananthakrishnan.
@@ -75,7 +75,6 @@ class Tracker:
         self.size_weight = size_weight
         self.distance_weight = distance_weight
 
-        # REIMPLEMENTATION MARKER: IMPLEMENTED TO HERE : REIMPLEMENTATION MARKER #
 
     def get_cost_matrix(self, size, detections):
         cost_matrix = np.zeros(shape=size)

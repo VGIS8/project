@@ -18,7 +18,7 @@ def capture(cli):
     set_speed(cli.config.capture.speed, 5000, 5000)
     sleep(4)
     set_speed(0, 5000, 5000)
-    sleep(2)
+    sleep(4)
 
     cam.capture(cli.config.capture.img_count)
     cam.save_images(cli.config.capture.output, cli.config.capture.force)
