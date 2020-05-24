@@ -73,14 +73,16 @@ class PymbaCam:
         self.img_buffer.append(image)
 
     def capture(self, num_of_images=100):
+        print("Started capture")
         self.img_buffer = []
         self.camera.start_frame_acquisition()
 
-        # stream images for a while...
-        while len(self.img_buffer) < num_of_images:
+        # stream images for a while... stop one image before, as an additional frame is captured when acquisition is stopped
+        while len(self.img_buffer) < num_of_images - 1:
             sleep(0.001)
 
         self.camera.stop_frame_acquisition()
+        sleep(0.5)
 
         self.framerate = self.framerate_sum / len(self.img_buffer)
         print(f"Average framerate: {self.framerate}")
@@ -105,6 +107,9 @@ class PymbaCam:
                 pass
 
         os.makedirs(out_dir)
+        with open(f'{out_dir.as_posix()}/framerate', 'w') as framerate_file:
+            framerate_file.write(str(self.framerate))
+
         for img in self.img_buffer:
 
             # Get the next valid frame ID
@@ -112,11 +117,12 @@ class PymbaCam:
             while not idx[1]:
                 idx = self.img_ID
                 self.img_IDs.pop(0)
+                print('a')
             idx = idx[0]
 
             cv.imwrite(f'{out_dir.as_posix()}/VimbaImage_{idx}.png', img)
             print(f"\t{out_dir.as_posix()}/VimbaImage_{idx}.png")
-        print('\a')
+        print('All images saved')
 
     idx = 0
 
