@@ -7,7 +7,7 @@ import cv2
 from milc import cli
 
 from defector.argument_types import dir_path
-from defector.helpers import roi_crop, get_folder, blob_detection, find_contours, background_equalization, make_hist, remove_stationary_contours, get_centroid
+from defector.helpers import roi_crop, get_folder, find_contours, remove_stationary_contours, get_centroid
 from defector.tracker import Tracker
 
 
@@ -17,7 +17,7 @@ from defector.tracker import Tracker
 @cli.argument('-i', '--input', type=dir_path, help='Directory containing the image sequence. Has to end in a number sequence', required=True)
 @cli.argument('-o', '--output', type=Path, help='Output directory to save images sequence in', default='framediff_output')
 @cli.subcommand("Generates sequence of frame differences from input image sequence")
-def framediff(cli):
+def framediff(cli):  # noqa: C901
     """
     Create a series of frame differences between all subsequent frames of VirtCam.
     """
@@ -35,23 +35,24 @@ def framediff(cli):
 
     images = get_folder(cli.config.framediff.input.resolve())
 
-    ############# test implementation of track ##################
-    center_points = []
-    #size = None
+    # test implementation of track #
+    # center_points = []
+    # size = None
 
     # Create Object Tracker
     tracker = Tracker(50, 5, 5, 100, 0.5)
 
     # Variables initialization
-    skip_frame_count = 0
+    # skip_frame_count = 0
     track_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 255), (255, 0, 255), (255, 127, 255), (127, 0, 255), (127, 0, 127)]
 
     ##############################################################
 
     first_run = True
+    pause = False
     for idx, img in enumerate(images[:-cli.config.framediff.distance]):
         background = cv2.imread(img, cv2.IMREAD_COLOR)
-        frame = cv2.imread(images[idx + cli.config.framediff.distance], cv2.IMREAD_COLOR)
+        # frame = cv2.imread(images[idx + cli.config.framediff.distance], cv2.IMREAD_COLOR)
 
         if cli.config.framediff.roi:
             first_run, background = roi_crop(background, first_run)
@@ -71,7 +72,7 @@ def framediff(cli):
             # draw the radius of the points, deciding if points are considered stationary
             cv2.circle(center_img, (centroid[0][0], centroid[1][0]), stationary_threshhold, (0, 255, 0), 1)
 
-        ################## tracker ###############
+        # tracker #
         tracker.Update(contours)
 
         # For identified object tracks draw tracking line

@@ -92,13 +92,14 @@ def get_plug_crop(frame):
     order = -1
 
     w, h = search_vertical(frame, order)
-    
+
     return x, y, w, h
 
 
 transformation_matrix = None
 crop_size = None
 crop_params = None
+
 
 def roi_crop(frame, first_run):
     """ Takes an image and returns a cropped image
@@ -136,13 +137,12 @@ def roi_crop(frame, first_run):
         rotated = cv2.warpPerspective(frame, transformation_matrix, crop_size, None, cv2.INTER_LINEAR, cv2.BORDER_CONSTANT, (255, 255, 255))
         if check_for_black(rotated) > 2.00:
             crop_params = get_plug_crop(rotated)
-    
+
     else:
         rotated = cv2.warpPerspective(frame, transformation_matrix, crop_size, None, cv2.INTER_LINEAR, cv2.BORDER_CONSTANT, (255, 255, 255))
 
     if crop_params is not None:
         rotated = second_crop(rotated, crop_params)
-
 
     return first_run, rotated
 
@@ -166,7 +166,7 @@ def check_for_black(frame):
     all_pixels = rows * cols
 
     black_count = all_pixels - not_black_count
-    black_ratio = (black_count/all_pixels) * 100
+    black_ratio = (black_count / all_pixels) * 100
 
     return black_ratio
 
@@ -181,7 +181,7 @@ def search_vertical(frame, direction=-1):
 
     if direction not in [-1, 1]:
         raise ValueError("direction has to be -1 or 1")
-    
+
     crop_col = 0
     for col in range(cols)[::direction]:
         vertical_pixels = []
@@ -193,12 +193,12 @@ def search_vertical(frame, direction=-1):
 
         if black_vertical < 5:
             crop_col = col
-            start_point = (0, crop_col)
-            end_point = (crop_row, col)
+            # start_point = (0, crop_col)
+            # end_point = (crop_row, col)
 
-#            image = cv2.line(frame, start_point, end_point, (0, 0, 255), 10)
-#            cv2.imshow("image", image)
-#            cv2.waitKey(0)
+            #            image = cv2.line(frame, start_point, end_point, (0, 0, 255), 10)
+            #            cv2.imshow("image", image)
+            #            cv2.waitKey(0)
             break
         else:
             pass
@@ -207,15 +207,15 @@ def search_vertical(frame, direction=-1):
 
 
 def get_transform_params(img, rect):
-     # find rotated rectangle
+    # find rotated rectangle
     rbox = order_points(cv2.boxPoints(rect))
 
-    # output of minAreaRect is unreliable for already axis aligned rectangles.    
+    # output of minAreaRect is unreliable for already axis aligned rectangles.
     # get width and height of the detected rectangle
     width = np.linalg.norm([rbox[0, 0] - rbox[1, 0], rbox[0, 1] - rbox[1, 1]])
     height = np.linalg.norm([rbox[0, 0] - rbox[-1, 0], rbox[0, 1] - rbox[-1, 1]])
     src_pts = rbox.astype(np.float32)
-    
+
     # coordinate of the points in box points after the rectangle has been straightened
     # this step needs order_points to be called on src
     dst_pts = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]], dtype="float32")
@@ -291,10 +291,10 @@ def find_contours(frame):
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     opening = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
 
-    #blobbed = blob_detection(closing)
+    # blobbed = blob_detection(closing)
 
     # Find Canny edges
-    #edged = cv2.Canny(closing, 120, 255)
+    # edged = cv2.Canny(closing, 120, 255)
 
     contours, hierarchy = cv2.findContours(opening, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
@@ -303,7 +303,7 @@ def find_contours(frame):
             if cv2.contourArea(c) > 200:
                 del contours[idx]
 
-    #cv2.drawContours(frame, contours, -1, (0, 0, 255), 2)
+    # cv2.drawContours(frame, contours, -1, (0, 0, 255), 2)
 
     # loop over the contours
     for i, c in enumerate(contours):
@@ -332,7 +332,7 @@ class ReferencePoint:
 reference_points = None
 
 
-def remove_stationary_contours(contours, thresh=0.5, interval=10, max_skipped_frames=1, max_referance_points=100):
+def remove_stationary_contours(contours, thresh=0.5, interval=10, max_skipped_frames=1, max_referance_points=100):  # noqa: C901
     global reference_points
     """ Removes contours that don't move
         more than threshhold over interval frames
@@ -370,7 +370,7 @@ def remove_stationary_contours(contours, thresh=0.5, interval=10, max_skipped_fr
     for idx_c, centroid in enumerate(unassigned_centroids):
         for idx_rp, point in enumerate(reference_points):
             # If the centroid is within <thresh> of a reference point, consider it the reference point
-            #print(euclidean(centroid, point.point))
+            # print(euclidean(centroid, point.point))
             if euclidean(centroid, point.point) <= thresh:
                 if idx_c not in assigned_centroids:
                     assigned_centroids.append(idx_c)
@@ -422,12 +422,12 @@ def blob_detection(frame):
     params.maxThreshold = 255
     params.filterByArea = True
     params.minArea = 15
-    #params.filterByCircularity = False
-    #params.minCircularity = 0.1
-    #params.filterByConvexity = False
-    #params.minConvexity = 0.87
-    #params.filterByInertia = False
-    #params.minInertiaRatio = 0.01
+    # params.filterByCircularity = False
+    # params.minCircularity = 0.1
+    # params.filterByConvexity = False
+    # params.minConvexity = 0.87
+    # params.filterByInertia = False
+    # params.minInertiaRatio = 0.01
 
     # Create a detector with the parameters
     ver = (cv2.__version__).split('.')

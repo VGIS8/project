@@ -73,7 +73,6 @@ class Tracker:
         self.size_weight = size_weight
         self.distance_weight = distance_weight
 
-
     def get_cost_matrix(self, size, detections):
         cost_matrix = np.zeros(shape=size)
 
@@ -96,7 +95,7 @@ class Tracker:
 
         return cost_matrix
 
-    def Update(self, detections):
+    def Update(self, detections):  # noqa: C901
         """Update tracks vector using following steps:
             - Create tracks if no tracks vector found
             - Calculate cost using sum of square distance
