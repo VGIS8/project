@@ -37,10 +37,10 @@ def set_speed(speed, acceleration, deceleration=None):
     ser = serial.Serial()
     ser.baudrate = 115200
     ser.port = port
-    ser.timeout = 10
+    ser.timeout = 0.1
     ser.dtr = None
 
     with ser as com:
         com.write(b'!' + packet)
-        line = com.readline()
+        line = com.read(1)
         print(line.decode())

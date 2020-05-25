@@ -15,12 +15,11 @@ def hello(cli):
     if cli.config.hello.input:
         cli.log.info(f'path is {cli.config.hello.input.resolve()}')
 
-@cli.argument('-d', '--decel', type=int, help="help", default=5000)
-@cli.argument('-a', '--accel', type=int, help="help", default=5000)
+@cli.argument('-d', '--decel', type=int, help="help", default=125)
+@cli.argument('-a', '--accel', type=int, help="help", default=125)
 @cli.argument('-s', '--speed', type=int, help="Speed to spin the vial at 0-1000", default=200)
 @cli.subcommand("Test stuff")
 def test(cli):
     set_speed(cli.config.test.speed, cli.config.test.accel, cli.config.test.decel)
-    sleep(5)
+    sleep(10)
     set_speed(0, cli.config.test.accel, cli.config.test.decel)
-    sleep(0.5)
