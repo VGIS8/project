@@ -7,7 +7,7 @@ import cv2
 from milc import cli
 
 from defector.argument_types import dir_path
-from defector.helpers import roi_crop, get_folder, blob_detection, find_contours, correct_ambient, make_hist, remove_stationary_contours, get_centroid
+from defector.helpers import roi_crop, get_folder, blob_detection, find_contours, background_equalization, make_hist, remove_stationary_contours, get_centroid
 from defector.tracker import Tracker
 
 
@@ -44,36 +44,31 @@ def framediff(cli):
 
     # Variables initialization
     skip_frame_count = 0
-    track_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
-                    (0, 255, 255), (255, 0, 255), (255, 127, 255),
-                    (127, 0, 255), (127, 0, 127)]
-
+    track_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 255), (255, 0, 255), (255, 127, 255), (127, 0, 255), (127, 0, 127)]
 
     ##############################################################
-    
-    size = None
+
+    first_run = True
     for idx, img in enumerate(images[:-cli.config.framediff.distance]):
         background = cv2.imread(img, cv2.IMREAD_COLOR)
         frame = cv2.imread(images[idx + cli.config.framediff.distance], cv2.IMREAD_COLOR)
 
         if cli.config.framediff.roi:
-            size, background = roi_crop(background, size)
-            _, frame = roi_crop(frame, size)
-
-        # _, binary = cv2.threshold(background, 120, 255, cv2.THRESH_BINARY)
-        # blobbed = blob_detection(binary)
+            first_run, background = roi_crop(background, first_run)
 
         contours, center_img = find_contours(background)
-        
+
         stationary_threshhold = 5
+        contours_found = len(contours)
         contours = remove_stationary_contours(contours, stationary_threshhold, 5, 10)
+        print(f"Contours: {len(contours)} moving | {contours_found - len(contours)} stationary")
+
+        centroids = [get_centroid(c) for c in contours]
 
         cv2.drawContours(center_img, contours, -1, (0, 0, 255), 2)
-        for i, c in enumerate(contours):
 
-            centroid = get_centroid(c)
-
-            # draw the  center of the shape on the image
+        for centroid in centroids:
+            # draw the radius of the points, deciding if points are considered stationary
             cv2.circle(center_img, (centroid[0][0], centroid[1][0]), stationary_threshhold, (0, 255, 0), 1)
 
         ################## tracker ###############
@@ -83,18 +78,21 @@ def framediff(cli):
         # Use various colors to indicate different track_id
         for i in range(len(tracker.tracks)):
             if (len(tracker.tracks[i].trace) > 1):
-                for j in range(len(tracker.tracks[i].trace)-1):
+                for j in range(len(tracker.tracks[i].trace) - 1):
                     # Draw trace line
-                    x1 = tracker.tracks[i].trace[j][0][0]
-                    y1 = tracker.tracks[i].trace[j][1][0]
-                    x2 = tracker.tracks[i].trace[j+1][0][0]
-                    y2 = tracker.tracks[i].trace[j+1][1][0]
+                    x1 = int(tracker.tracks[i].trace[j][0][0])
+                    y1 = int(tracker.tracks[i].trace[j][1][0])
+                    x2 = int(tracker.tracks[i].trace[j + 1][0][0])
+                    y2 = int(tracker.tracks[i].trace[j + 1][1][0])
                     clr = tracker.tracks[i].track_id % 9
-                    cv2.line(center_img, (int(x1), int(y1)), (int(x2), int(y2)), track_colors[clr], 1)
+                    cv2.line(center_img, (x1, y1), (x2, y2), track_colors[clr], 1)
+                if tracker.tracks[i].point is not None:
+                    cv2.line(center_img, (x2, y2), (tracker.tracks[i].point[0][0], tracker.tracks[i].point[1][0]), track_colors[clr], 1)
 
         # Display the resulting tracking frame
+
         cv2.imshow('Tracking', center_img)
-        cv2.waitKey(50)
+        cv2.waitKey(10)
 
         # Check for key strokes
         k = cv2.waitKey(50) & 0xff

@@ -26,7 +26,6 @@ class Track:
     Attributes:
         None
     """
-
     def __init__(self, prediction, trackIdCount, contour_size):
         """Initialize variables used by Track class
         Args:
@@ -46,6 +45,7 @@ class Track:
         self.previous_size = contour_size  # the size of the previous contour
         self.skipped_frames = 0  # number of frames skipped undetected
         self.trace = []  # trace path
+        self.point = []  # the last point associated with the trace
 
 
 class Tracker:
@@ -53,9 +53,7 @@ class Tracker:
     Attributes:
         None
     """
-
-    def __init__(self, dist_thresh, max_frames_to_skip, max_trace_length,
-                 trackIdCount, size_weight=0.2, distance_weight=1.0):
+    def __init__(self, dist_thresh, max_frames_to_skip, max_trace_length, trackIdCount, size_weight=0.2, distance_weight=1.0):
         """Initialize variable used by Tracker class
         Args:
             dist_thresh: distance threshold. When exceeds the threshold,
@@ -170,10 +168,9 @@ class Tracker:
                 un_assigned_detects.append(i)
 
         # Start new tracks
-        if(len(un_assigned_detects) != 0):
+        if (len(un_assigned_detects) != 0):
             for i in range(len(un_assigned_detects)):
-                track = Track(get_centroid(detections[un_assigned_detects[i]]),
-                              self.trackIdCount, contourArea(detections[un_assigned_detects[i]]))
+                track = Track(get_centroid(detections[un_assigned_detects[i]]), self.trackIdCount, contourArea(detections[un_assigned_detects[i]]))
                 self.trackIdCount += 1
                 self.tracks.append(track)
 
@@ -181,18 +178,19 @@ class Tracker:
         for i in range(len(assignment)):
             self.tracks[i].KF.predict()
 
-            if(assignment[i] != -1):
+            if (assignment[i] != -1):
                 self.tracks[i].skipped_frames = 0
                 self.tracks[i].KF.update(get_centroid(detections[assignment[i]]))
                 self.tracks[i].prediction = self.tracks[i].KF.x
                 self.tracks[i].previous_size = contourArea(detections[assignment[i]])
+                self.tracks[i].point = get_centroid(detections[assignment[i]])
             else:
                 self.tracks[i].KF.update(None)
                 self.tracks[i].prediction = self.tracks[i].KF.x
+                self.tracks[i].point = None
 
-            if(len(self.tracks[i].trace) > self.max_trace_length):
-                for j in range(len(self.tracks[i].trace) -
-                               self.max_trace_length):
+            if (len(self.tracks[i].trace) > self.max_trace_length):
+                for j in range(len(self.tracks[i].trace) - self.max_trace_length):
                     del self.tracks[i].trace[j]
 
             self.tracks[i].trace.append(self.tracks[i].prediction)

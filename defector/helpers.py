@@ -9,8 +9,8 @@ import re
 
 import cv2
 import numpy as np
-from scipy.spatial.distance import euclidean
-# from matplotlib import pyplot as plt
+from scipy.spatial.distance import euclidean, cdist
+from matplotlib import pyplot as plt
 
 from pymba import Vimba, VimbaException, Frame
 
@@ -86,7 +86,21 @@ def get_frame(frames=1, cam=0):
         return frames
 
 
-def roi_crop(img, size=None):
+def get_plug_crop(frame):
+    x = 0
+    y = 0
+    order = -1
+
+    w, h = search_vertical(frame, order)
+    
+    return x, y, w, h
+
+
+transformation_matrix = None
+crop_size = None
+crop_params = None
+
+def roi_crop(frame, first_run):
     """ Takes an image and returns a cropped image
         Crops frames to remove background
 
@@ -96,57 +110,159 @@ def roi_crop(img, size=None):
         Returns:
             A cropped image
     """
-    # img = cv2.copyMakeBorder(img, 10, 10, 10, 10, cv2.BORDER_CONSTANT, None, 0)
+    global transformation_matrix
+    global crop_size
+    global crop_params
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, threshed_img = cv2.threshold(gray, 40, 255, cv2.THRESH_BINARY)
-    # find contours and get the external one
+    if first_run:
+        first_run = False
 
-    kernel = np.ones((15, 15), np.uint8)
-    closing = cv2.morphologyEx(threshed_img, cv2.MORPH_CLOSE, kernel)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        _, threshed_img = cv2.threshold(gray, 40, 255, cv2.THRESH_BINARY)
+        # find contours and get the external one
 
-    contours, hier = cv2.findContours(closing, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        kernel = np.ones((15, 15), np.uint8)
+        opening = cv2.morphologyEx(threshed_img, cv2.MORPH_OPEN, kernel)
 
-    chosen_contour = max(contours, key=cv2.contourArea)
+        contours, hier = cv2.findContours(opening, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        chosen_contour = max(contours, key=cv2.contourArea)
 
-    x, y, w, h = cv2.boundingRect(chosen_contour)
+        rect = cv2.minAreaRect(chosen_contour)
 
-    if size is None:
-        size = [x, y, w, h]
+        # Get the transformation matrix and crop size for the vial in frame
+        transformation_matrix, crop_size = get_transform_params(frame, rect)
+
+        # Crop out the right side of the frame if over 2% of the frame is still background
+        rotated = cv2.warpPerspective(frame, transformation_matrix, crop_size, None, cv2.INTER_LINEAR, cv2.BORDER_CONSTANT, (255, 255, 255))
+        if check_for_black(rotated) > 2.00:
+            crop_params = get_plug_crop(rotated)
+    
     else:
-        x, y, w, h = size
+        rotated = cv2.warpPerspective(frame, transformation_matrix, crop_size, None, cv2.INTER_LINEAR, cv2.BORDER_CONSTANT, (255, 255, 255))
 
-    # create mask and draw filled rectangle from contour
-    mask = np.zeros(img.shape, np.uint8)
-
-    cv2.rectangle(mask, (x, y), (x + w, y + h), (255, 255, 255), cv2.FILLED)
-    # apply mask
-    dst = cv2.bitwise_and(img, mask)
-
-    # crop image to mask
-    img = dst[y:y + h, x:x + w]
-
-    return size, img
+    if crop_params is not None:
+        rotated = second_crop(rotated, crop_params)
 
 
-def correct_ambient(frame):
-    # Structuring element
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25))
-
-    # Apply the black hat transform
-    corrected = cv2.morphologyEx(frame, cv2.MORPH_BLACKHAT, kernel)
-
-    return corrected
+    return first_run, rotated
 
 
-def draw_lines(frame, background):
+def second_crop(frame, crop_params):
 
-    return frame
+    x, y, w, h = crop_params
+
+    cropped = frame[y:y + h, x:x + w]
+
+    return cropped
+
+
+def check_for_black(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    _, threshed = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY)
+
+    not_black_count = cv2.countNonZero(threshed)
+
+    rows, cols = gray.shape
+    all_pixels = rows * cols
+
+    black_count = all_pixels - not_black_count
+    black_ratio = (black_count/all_pixels) * 100
+
+    return black_ratio
+
+
+def search_vertical(frame, direction=-1):
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    _, threshed = cv2.threshold(gray, 20, 255, cv2.THRESH_BINARY)
+
+    rows, cols = gray.shape
+    crop_row = rows
+
+    if direction not in [-1, 1]:
+        raise ValueError("direction has to be -1 or 1")
+    
+    crop_col = 0
+    for col in range(cols)[::direction]:
+        vertical_pixels = []
+        for row in range(rows):
+            vertical_pixels.append(threshed[row, col])
+
+        non_black_vertical = np.count_nonzero(vertical_pixels)
+        black_vertical = len(vertical_pixels) - non_black_vertical
+
+        if black_vertical < 5:
+            crop_col = col
+            start_point = (0, crop_col)
+            end_point = (crop_row, col)
+
+#            image = cv2.line(frame, start_point, end_point, (0, 0, 255), 10)
+#            cv2.imshow("image", image)
+#            cv2.waitKey(0)
+            break
+        else:
+            pass
+
+    return crop_col, crop_row
+
+
+def get_transform_params(img, rect):
+     # find rotated rectangle
+    rbox = order_points(cv2.boxPoints(rect))
+
+    # output of minAreaRect is unreliable for already axis aligned rectangles.    
+    # get width and height of the detected rectangle
+    width = np.linalg.norm([rbox[0, 0] - rbox[1, 0], rbox[0, 1] - rbox[1, 1]])
+    height = np.linalg.norm([rbox[0, 0] - rbox[-1, 0], rbox[0, 1] - rbox[-1, 1]])
+    src_pts = rbox.astype(np.float32)
+    
+    # coordinate of the points in box points after the rectangle has been straightened
+    # this step needs order_points to be called on src
+    dst_pts = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]], dtype="float32")
+
+    transformation_matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
+
+    return transformation_matrix, (width, height)
+
+
+def order_points(pts):
+    # Sort the points based on their x-coordinates
+    xSorted = pts[np.argsort(pts[:, 0]), :]
+
+    # Grab the left-most and right-most points from the sorted x-coordinate points
+    leftMost = xSorted[:2, :]
+    rightMost = xSorted[2:, :]
+
+    # Now, sort the left-most coordinates according to their y-coordinates so we can grab the top-left and bottom-left
+    # points, respectively
+    leftMost = leftMost[np.argsort(leftMost[:, 1]), :]
+    (tl, bl) = leftMost
+
+    # Now that we have the top-left coordinate, use it as an anchor to calculate the Euclidean distance between the
+    # top-left and right-most points; by the Pythagorean theorem, the point with the largest distance will be
+    # our bottom-right point
+    D = cdist(tl[np.newaxis], rightMost, "euclidean")[0]
+    (br, tr) = rightMost[np.argsort(D)[::-1], :]
+
+    # return the coordinates in top-left, top-right,
+    # bottom-right, and bottom-left order
+    return np.asarray([tl, tr, br, bl], dtype=pts.dtype)
+
+
+def background_equalization(frame, kernel_size):
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # Create structuring element and apply the black hat transform
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+    equalized = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, kernel)
+
+    return equalized
 
 
 def make_hist(frame):
-    # plt.hist(frame.ravel(), 256, [0, 256])
-    # plt.show()
+    plt.hist(frame.ravel(), 256, [0, 256])
+    plt.show()
     return frame
 
 
@@ -167,52 +283,35 @@ def get_centroid(contours):
 
 def find_contours(frame):
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    kernel_size = 25
+    ca = background_equalization(frame, kernel_size)
+
+    _, binary = cv2.threshold(ca, 7, 255, cv2.THRESH_BINARY)
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    opening = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+
+    #blobbed = blob_detection(closing)
+
     # Find Canny edges
-    ca = correct_ambient(gray)
+    #edged = cv2.Canny(closing, 120, 255)
 
-    a = np.double(ca)
-    b = a - 15
-    darker = np.uint8(b)
+    contours, hierarchy = cv2.findContours(opening, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
-    _, binary = cv2.threshold(darker, 120, 255, cv2.THRESH_BINARY_INV)
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    bigger = cv2.dilate(binary, kernel)
-
-    edged = cv2.Canny(bigger, 120, 255)
-
-    # cv2.imshow("org", frame)
-    # cv2.imshow("corrected", bigger)
-    # cv2.imshow("edged", edged)
-    # cv2.waitKey(1)
-
-    contours, hierarchy = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    print("Number of Contours found = " + str(len(contours)))
-
-    max_idx = 0
-    max_area = 0
-    for idx, contour in enumerate(contours):
-        x = cv2.contourArea(contour)
-        try:
-            if x > max_area:
-                max_area = x
-                max_idx = idx
-        except TypeError:
-            continue
-
-    del contours[max_idx]
+    for idx, c in enumerate(contours):
+        if len(c) > 150:
+            if cv2.contourArea(c) > 200:
+                del contours[idx]
 
     #cv2.drawContours(frame, contours, -1, (0, 0, 255), 2)
 
-    #centers = []
     # loop over the contours
     for i, c in enumerate(contours):
 
         centroid = get_centroid(c)
-        #centers.append((centroid[0][0], centroid[1][0]))
 
         # draw the  center of the shape on the image
-        cv2.circle(frame, (centroid[0][0], centroid[1][0]), 2, (255, 0, 0), 1)
+        cv2.circle(frame, (centroid[0][0], centroid[1][0]), 1, (255, 0, 0), 2)
 
     return contours, frame
 
@@ -319,17 +418,16 @@ def blob_detection(frame):
     # Setup SimpleBlobDetector parameters.
     params = cv2.SimpleBlobDetector_Params()
 
-    # Change parameters
     params.minThreshold = 0
     params.maxThreshold = 255
-    params.filterByArea = False
-    params.minArea = 1500
-    params.filterByCircularity = True
-    params.minCircularity = 0.1
-    params.filterByConvexity = False
-    params.minConvexity = 0.87
-    params.filterByInertia = False
-    params.minInertiaRatio = 0.01
+    params.filterByArea = True
+    params.minArea = 15
+    #params.filterByCircularity = False
+    #params.minCircularity = 0.1
+    #params.filterByConvexity = False
+    #params.minConvexity = 0.87
+    #params.filterByInertia = False
+    #params.minInertiaRatio = 0.01
 
     # Create a detector with the parameters
     ver = (cv2.__version__).split('.')
@@ -340,9 +438,9 @@ def blob_detection(frame):
 
     # Detect blobs.
     keypoints = detector.detect(frame)
+
     # Draw detected blobs as red circles.
-    # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
-    im_with_keypoints = cv2.drawKeypoints(frame, keypoints, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    im_with_keypoints = cv2.drawKeypoints(frame, keypoints, np.array([]), (0, 0, 255), 2)
 
     return im_with_keypoints
 
