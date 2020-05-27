@@ -10,7 +10,7 @@ import re
 import cv2
 import numpy as np
 from scipy.spatial.distance import euclidean, cdist
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 
 from pymba import Vimba, VimbaException, Frame
 
@@ -260,10 +260,10 @@ def background_equalization(frame, kernel_size):
     return equalized
 
 
-def make_hist(frame):
-    plt.hist(frame.ravel(), 256, [0, 256])
-    plt.show()
-    return frame
+#def make_hist(frame):
+    #plt.hist(frame.ravel(), 256, [0, 256])
+    #plt.show()
+    #return frame
 
 
 def get_centroid(contours):
