@@ -87,11 +87,9 @@ def get_frame(frames=1, cam=0):
 
 
 def get_plug_crop(frame):
-    x = 0
-    y = 0
-    order = -1
 
-    w, h = search_vertical(frame, order)
+    x, y = search_vertical(frame, 1)
+    w, h = search_vertical(frame, -1)
 
     return x, y, w, h
 
@@ -135,7 +133,7 @@ def roi_crop(frame, first_run):
 
         # Crop out the right side of the frame if over 2% of the frame is still background
         rotated = cv2.warpPerspective(frame, transformation_matrix, crop_size, None, cv2.INTER_LINEAR, cv2.BORDER_CONSTANT, (255, 255, 255))
-        if check_for_black(rotated) > 2.00:
+        if check_for_black(rotated) > 1.50:
             crop_params = get_plug_crop(rotated)
 
     else:
@@ -148,10 +146,11 @@ def roi_crop(frame, first_run):
 
 
 def second_crop(frame, crop_params):
+    tolerance = 5  # remove extra pixels to be sure
 
-    x, y, w, h = crop_params
+    x1, y1, x2, y2 = crop_params
 
-    cropped = frame[y:y + h, x:x + w]
+    cropped = frame[0:y2, x1 + tolerance:x2 - tolerance]
 
     return cropped
 
