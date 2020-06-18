@@ -15,7 +15,9 @@ import numpy as np
 
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import euclidean
-from filterpy.kalman import KalmanFilter
+from scipy.linalg import block_diag
+from filterpy.kalman import ExtendedKalmanFilter
+from filterpy.common import Q_discrete_white_noise
 
 from defector.helpers import get_centroid
 from cv2 import contourArea
@@ -26,26 +28,84 @@ class Track:
     Attributes:
         None
     """
-    def __init__(self, prediction, trackIdCount, contour_size):
+    def __init__(self, position, trackIdCount, contour_size):
         """Initialize variables used by Track class
         Args:
-            prediction: predicted centroids of object to be tracked
+            position: Initial detected entroids of object to be tracked
             trackIdCount: identification of each track object
+            contour_size: The area of the contour being tracked
         Return:
             None
         """
         self.track_id = trackIdCount  # identification of each track object
-        self.KF = KalmanFilter(2, 2)  # KF instance to track this object
-        self.dt = 0.005
-        self.KF.F = np.array([[1, self.dt], [0, 1]])  # State transition matrix
-        self.KF.P = np.diag((3.0, 3.0))  # covarianse matrix
-        self.KF.H = np.array([[1, 0], [0, 1]])  # matrix in observation equations / measurment function
 
-        self.prediction = np.asarray(prediction)  # predicted centroids (x,y)
+        # EKF to track this object. We're tracking position and velocity in 2D
+        # And getting position in our meassurements.
+        self.KF = ExtendedKalmanFilter(dim_x=7, dim_z=2)
+        self.KF.x = np.array([0, 2 * np.pi, 2, 0, 2 * np.pi, 10, position[0]])
+        
+        framerate = 40
+        dt = 1 / framerate
+        self.dt = dt
+        self.KF.F = np.array([[1, dt,  0,  0,  0,  0,  0],  # noqa: E241
+                              [0,  1,  0,  0,  0,  0,  0],  # noqa: E241
+                              [0,  0,  1,  0,  0,  0,  0],  # noqa: E241
+                              [0,  0,  0,  1, dt,  0,  0],  # noqa: E241
+                              [0,  1,  0,  0,  0,  0,  0],  # For now, angular_velocity_y = angular_velocity_x  # noqa: E241
+                              [0,  0,  0,  0,  0,  1,  0],  # noqa: E241
+                              [0,  0,  0,  0,  0,  0,  1]])  # noqa: E241
+        
+        center_std = [2, 2]  # pixels? mm?
+        #self.KF.R = np.diag([center_std[0]**2, center_std[1]**2])
+
+        q = Q_discrete_white_noise(dim=3, dt=dt, var=0.01)
+        self.KF.Q = block_diag(q, q, 0.1)
+
+        self.KF.P *= 50
+
+        # self.KF = KalmanFilter(dim_x=7, dim_z=2)  # KF instance to track this object
+        # self.KF.F = np.array([[1, self.dt], [0, 1]])  # State transition matrix
+        # self.KF.P = np.diag((3.0, 3.0))  # covarianse matrix
+        # self.KF.H = np.array([[1, 0], [0, 1]])  # matrix in observation equations / measurment function
+
+        self.prediction = np.asarray(position)  # predicted centroids (x,y)
         self.previous_size = contour_size  # the size of the previous contour
         self.skipped_frames = 0  # number of frames skipped undetected
         self.trace = []  # trace path
         self.point = []  # the last point associated with the trace
+
+
+def kalman_hx(x):
+    """Convert the EKF state into a meassurement"""
+
+    phase_x = x[0]
+    amplitude_x = x[2]
+    phase_y = x[3]
+    amplitude_y = x[5]
+    offset_x = x[6][0]
+
+    result = np.array([[np.cos(phase_x) * amplitude_x + offset_x],
+                       [np.sin(phase_y) * amplitude_y]])
+
+    return result
+
+
+def kalman_H_Jacobian_at(x):
+    """Calculate H jacobian at state x"""
+
+    phase_x = x[0]
+    amplitude_x = x[2]
+    phase_y = x[3]
+    amplitude_y = x[5]
+
+    # Jacobian found with sympy:
+    #   Matrix([[-Ax*sin(φx), 0, cos(φx), 0, 0, 0, 1],
+    #           [0, 0, 0, Ay*cos(φy), 0, sin(φy), 0]])
+
+    result = np.array([[-amplitude_x * np.sin(phase_x), 0, np.cos(phase_x), 0, 0, 0, 1],
+                       [0, 0, 0, amplitude_y * np.cos(phase_y), 0, np.sin(phase_y), 0]])
+    
+    return result
 
 
 class Tracker:
@@ -81,7 +141,8 @@ class Tracker:
         for i in range(len(self.tracks)):
             for j in range(len(centroids)):
                 try:
-                    distance = euclidean(self.tracks[i].prediction, centroids[j])
+                    point = (self.tracks[i].prediction[0][0], self.tracks[i].prediction[1][0])
+                    distance = euclidean(point, centroids[j])
                     size_diff = np.abs(self.tracks[i].previous_size - contourArea(detections[j]))
 
                     # Let's average the squared ERROR
@@ -175,18 +236,18 @@ class Tracker:
 
         # Update KalmanFilter state, lastResults and tracks trace
         for i in range(len(assignment)):
-            self.tracks[i].KF.predict()
-
             if (assignment[i] != -1):
                 self.tracks[i].skipped_frames = 0
-                self.tracks[i].KF.update(get_centroid(detections[assignment[i]]))
+                self.tracks[i].KF.update(get_centroid(detections[assignment[i]]), kalman_H_Jacobian_at, kalman_hx)
                 self.tracks[i].prediction = self.tracks[i].KF.x
                 self.tracks[i].previous_size = contourArea(detections[assignment[i]])
                 self.tracks[i].point = get_centroid(detections[assignment[i]])
             else:
-                self.tracks[i].KF.update(None)
+                self.tracks[i].KF.update(None, kalman_H_Jacobian_at, kalman_hx)
                 self.tracks[i].prediction = self.tracks[i].KF.x
                 self.tracks[i].point = None
+
+            self.tracks[i].KF.predict()
 
             if (len(self.tracks[i].trace) > self.max_trace_length):
                 for j in range(len(self.tracks[i].trace) - self.max_trace_length):
